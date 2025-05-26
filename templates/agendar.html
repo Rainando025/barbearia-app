@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>Agendar Corte</title>
+
+    <!-- Bootstrap CDN (opcional, para grid e estilo base) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Fonte retrô Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Staatliches', sans-serif;
+            background-image: url('{{ url_for('static', filename='img/barbearia23.jpg') }}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-container {
+            background-color: rgba(0, 0, 0, 0.8); /* fundo escuro semitransparente */
+            padding: 30px;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 0 20px rgba(92, 64, 51, 0.7); /* sombra marrom */
+        }
+
+        label {
+            margin-top: 10px;
+            color: #FFD700; /* dourado */
+        }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #D2691E; /* laranja escuro */
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #8B4513; /* marrom escuro */
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #FFDEAD;
+        }
+    </style>
+</head>
+<body>
+    <div class="form-container">
+        <h1>Agendar Corte</h1>
+        <form method="POST" action="/agendar">
+            <label for="nome_cliente">Seu nome:</label>
+            <input type="text" id="nome_cliente" name="nome_cliente" required>
+
+            <label for="corte">Tipo de corte:</label>
+            <select id="corte" name="corte_id">
+                {% for corte in cortes %}
+                    <option value="{{ corte.id }}">{{ corte.nome }} - R$ {{ corte.preco }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="barbeiro">Barbeiro:</label>
+            <select id="barbeiro" name="barbeiro_id">
+                {% for barbeiro in barbeiros %}
+                    <option value="{{ barbeiro.id }}">{{ barbeiro.nome }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="data">Data:</label>
+            <input type="date" id="data" name="data" required>
+
+            <label for="hora">Hora:</label>
+            <input type="time" id="hora" name="hora" required>
+
+            <button type="submit">Agendar</button>
+        </form>
+    </div>
+</body>
+</html>
