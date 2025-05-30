@@ -17,7 +17,230 @@ supabase_headers = {
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:wordKey##@localhost:5433/barbearia'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Falsefrom flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import or_
+from datetime import datetime, date  # <--- adicionei date aqui
+from werkzeug.security import generate_password_hash, check_password_hash
+import requests
+
+app = Flask(__name__)
+app.secret_key = '747d003611e2cb0afd469075f617e501'  # necessário para flash messages
+ADMIN_USERNAME = 'admin'
+ADMIN_PASSWORD = 'admin123'
+
+SUPABASE_URL = 'https://fijsbauiupuamssehksw.supabase.co'
+SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
+headers = {
+    "apikey": SUPABASE_KEY,
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "Content-Type": "application/json"
+}
+
+# --- Funções auxiliares para CRUD no Supabase ---
+
+def supabase_get(table, filters=None):
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    params = filters if filters else {}
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        print(f"Erro GET {table}: {response.status_code} {response.text}")
+        return None
+
+def supabase_post(table, data):
+    url = f"{SUPABASE_URL}/rest/v1/{table}"
+    response = requests.post(url, headers=headers, json=data)
+    if response.status_code in (200, 201):
+        return response.json()
+    else:
+        print(f"Erro POST {table}: {response.status_code} {response.text}")
+        return None
+
+def supabase_patch(table, id_value, data):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{id_value}"
+    response = requests.patch(url, headers=headers, json=data)
+    if response.status_code == 204:
+        return True
+    else:
+        print(f"Erro PATCH {table} id {id_value}: {response.status_code} {response.text}")
+        return False
+
+def supabase_delete(table, id_value):
+    url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{id_value}"
+    response = requests.delete(url, headers=headers)
+    if response.status_code == 204:
+        return True
+    else:
+        print(f"Erro DELETE {table} id {id_value}: {response.status_code} {response.text}")
+        return False
+
+
+# --- Rotas para Barbeiros ---
+
+@app.route('/barbeiros')
+def listar_barbeiros():
+    barbeiros = supabase_get('barbeiros')
+    return render_template('painel_barbeiro.html', barbeiros=barbeiros)
+
+@app.route('/barbeiros/cadastrar', methods=['GET', 'POST'])
+def cadastrar_barbeiro():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        username = request.form['username']
+        senha = request.form['senha']
+        senha_hash = generate_password_hash(senha)
+
+        data = {
+            'nome': nome,
+            'email': email,
+            'username': username,
+            'senha': senha_hash
+        }
+        supabase_post('barbeiros', data)
+        return redirect(url_for('listar_barbeiros'))
+
+    return render_template('cadastrar_barbeiro.html')
+
+@app.route('/barbeiros/editar/<int:id>', methods=['GET', 'POST'])
+def editar_barbeiro(id):
+    if request.method == 'POST':
+        nome = request.form['nome']
+        email = request.form['email']
+        username = request.form['username']
+        senha = request.form.get('senha')
+        data = {
+            'nome': nome,
+            'email': email,
+            'username': username
+        }
+        if senha:
+            data['senha'] = generate_password_hash(senha)
+
+        supabase_patch('barbeiros', id, data)
+        return redirect(url_for('listar_barbeiros'))
+
+    barbeiro = supabase_get('barbeiros', {'id': f'eq.{id}'})
+    if barbeiro:
+        return render_template('editar_barbeiro.html', barbeiro=barbeiro[0])
+    return "Barbeiro não encontrado", 404
+
+@app.route('/barbeiros/deletar/<int:id>', methods=['POST'])
+def deletar_barbeiro(id):
+    supabase_delete('barbeiros', id)
+    return redirect(url_for('listar_barbeiros'))
+
+
+# --- Rotas para Cortes ---
+
+@app.route('/cortes')
+def listar_cortes():
+    cortes = supabase_get('cortes')
+    return render_template('cortes.html', cortes=cortes)
+
+@app.route('/cortes/cadastrar', methods=['GET', 'POST'])
+def cadastrar_corte():
+    if request.method == 'POST':
+        nome = request.form['nome']
+        preco = float(request.form['preco'])
+        data = {'nome': nome, 'preco': preco}
+        supabase_post('cortes', data)
+        return redirect(url_for('listar_cortes'))
+
+    return render_template('cadastrar_corte.html')
+
+@app.route('/cortes/editar/<int:id>', methods=['GET', 'POST'])
+def editar_corte(id):
+    if request.method == 'POST':
+        nome = request.form['nome']
+        preco = float(request.form['preco'])
+        data = {'nome': nome, 'preco': preco}
+        supabase_patch('cortes', id, data)
+        return redirect(url_for('listar_cortes'))
+
+    corte = supabase_get('cortes', {'id': f'eq.{id}'})
+    if corte:
+        return render_template('editar_corte.html', corte=corte[0])
+    return "Corte não encontrado", 404
+
+@app.route('/cortes/deletar/<int:id>', methods=['POST'])
+def deletar_corte(id):
+    supabase_delete('cortes', id)
+    return redirect(url_for('listar_cortes'))
+
+
+# --- Rotas para Agendamentos ---
+
+@app.route('/agendar', methods=['GET', 'POST'])
+def agendar():
+    if request.method == 'POST':
+        cliente = request.form['cliente']
+        barbeiro_id = int(request.form['barbeiro_id'])
+        corte_id = int(request.form['corte_id'])
+        data_hora = request.form['data_hora']
+
+        data = {
+            'cliente': cliente,
+            'barbeiro_id': barbeiro_id,
+            'corte_id': corte_id,
+            'data_hora': data_hora,
+            'concluido': False
+        }
+        supabase_post('agendamentos', data)
+        return redirect(url_for('listar_agendamentos'))
+
+    barbeiros = supabase_get('barbeiros')
+    cortes = supabase_get('cortes')
+    return render_template('agendar.html', barbeiros=barbeiros, cortes=cortes)
+
+@app.route('/agendamentos')
+def listar_agendamentos():
+    agendamentos = supabase_get('agendamentos')
+    return render_template('agendamentos.html', agendamentos=agendamentos)
+
+@app.route('/agendamentos/concluir/<int:id>', methods=['POST'])
+def concluir_agendamento(id):
+    sucesso = supabase_patch('agendamentos', id, {'concluido': True})
+    if sucesso:
+        return redirect(url_for('listar_agendamentos'))
+    return "Erro ao concluir agendamento", 400
+
+@app.route('/agendamentos/deletar/<int:id>', methods=['POST'])
+def deletar_agendamento(id):
+    supabase_delete('agendamentos', id)
+    return redirect(url_for('listar_agendamentos'))
+
+
+# --- Login e Logout ---
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        username = request.form['username']
+        senha = request.form['senha']
+
+        usuarios = supabase_get('barbeiros', {'username': f'eq.{username}'})
+        if usuarios and len(usuarios) > 0:
+            usuario = usuarios[0]
+            if check_password_hash(usuario['senha'], senha):
+                session['usuario_id'] = usuario['id']
+                session['usuario_nome'] = usuario['nome']
+                return redirect(url_for('listar_agendamentos'))
+        return render_template('login.html', erro="Usuário ou senha inválidos")
+
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 app.secret_key = '747d003611e2cb0afd469075f617e501'  # necessário para flash messages
 ADMIN_USERNAME = 'admin'
 ADMIN_PASSWORD = 'admin123'
