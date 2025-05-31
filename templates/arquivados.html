@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Agendamentos Arquivados</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background-color: #121212; /* fundo geral escuro */
+      color: #ddd;
+      font-family: 'Segoe UI', sans-serif;
+    }
+
+    h2 {
+      color: #f0c674;
+      text-shadow: 1px 1px 2px #000;
+      margin-bottom: 30px;
+    }
+
+    .agendamento {
+      padding: 15px;
+      background-color: #1e1e1e;
+      border-left: 5px solid;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      margin-bottom: 15px;
+    }
+
+    .concluido {
+      border-color: green;
+    }
+
+    .pendente {
+      border-color: crimson;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    .status.concluido {
+      color: lightgreen;
+    }
+
+    .status.pendente {
+      color: tomato;
+    }
+
+    .btn-voltar {
+      display: inline-block;
+      margin-top: 30px;
+      padding: 12px 24px;
+      background-color: #333;
+      color: #f0c674;
+      text-decoration: none;
+      border: 2px solid #f0c674;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      transition: background-color 0.3s;
+    }
+
+    .btn-voltar:hover {
+      background-color: #444;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Agendamentos Arquivados</h2>
+
+  {% for a in agendamentos %}
+    <div class="agendamento {{ 'concluido' if a.concluido else 'pendente' }}">
+      <strong style="font-size: 18px;">💈 {{ a.nome_cliente }}</strong><br>
+      <span style="color: #aaa;">📅 {{ a.data.strftime('%d/%m/%Y') }} 🕒 {{ a.hora.strftime('%H:%M') }}</span><br>
+      <span class="status {{ 'concluido' if a.concluido else 'pendente' }}">
+        {{ '✔️ Concluído' if a.concluido else '⌛ Pendente' }}
+      </span>
+    </div>
+  {% endfor %}
+
+	<a href="{{ url_for('painel_admin') if origem == 'admin' else url_for('painel_barbeiro') }}" class="btn btn-secondary mt-4">
+    🔙 Voltar
+	</a>
+
+</body>
+</html>

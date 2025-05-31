@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Gerenciar Barbeiros</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    input.form-control {
+      background-color: #222;
+      color: white;
+    }
+  </style>
+</head>
+<body class="bg-dark text-white">
+<div class="container mt-5">
+  <h2>Gerenciar Barbeiros</h2>
+  <form method="POST" action="{{ url_for('gerenciar_barbeiros') }}">
+    <table class="table table-dark table-striped">
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Email</th>
+          <th>Username</th>
+          <th>Senha (nova)</th>
+        </tr>
+      </thead>
+      <tbody id="tabela-barbeiros">
+        {% for b in barbeiros %}
+        <tr>
+          <td><input type="text" name="nome_{{ b.id }}" value="{{ b.nome }}" class="form-control" required></td>
+          <td><input type="email" name="email_{{ b.id }}" value="{{ b.email }}" class="form-control" required></td>
+          <td><input type="text" name="username_{{ b.id }}" value="{{ b.username }}" class="form-control" required></td>
+          <td><input type="password" name="senha_{{ b.id }}" placeholder="Nova senha" class="form-control"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-secondary" onclick="adicionarLinha()">+ Novo Barbeiro</button>
+    <button type="submit" class="btn btn-success">Salvar Alterações</button>
+    <a href="{{ url_for('painel_admin') }}" class="btn btn-danger">Voltar</a>
+  </form>
+</div>
+
+<script>
+let novoId = -1;
+
+function adicionarLinha() {
+  const tabela = document.getElementById("tabela-barbeiros");
+  const linha = document.createElement("tr");
+  linha.innerHTML = `
+    <td><input type="text" name="nome_${novoId}" class="form-control" required></td>
+    <td><input type="email" name="email_${novoId}" class="form-control" required></td>
+    <td><input type="text" name="username_${novoId}" class="form-control" required></td>
+    <td><input type="password" name="senha_${novoId}" class="form-control" required></td>
+  `;
+  tabela.appendChild(linha);
+  novoId--; // ids negativos para novos
+}
+</script>
+</body>
+</html>
