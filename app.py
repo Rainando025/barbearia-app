@@ -22,7 +22,6 @@ supabase_headers = {
 
 
 
-from datetime import datetime
 @app.template_filter('datetimeformat')
 def datetimeformat(value, format='%d/%m/%Y'):
     try:
@@ -271,7 +270,9 @@ def gerenciar_cortes():
                 try:
                     preco_float = float(preco)
                 except ValueError:
+                    flash(f"Preço inválido para o corte: {nome}", "error")
                     continue
+
 
                 if id_str.startswith("-"):  # Novo corte
                     insert_resp = supabase.table('cortes').insert({
