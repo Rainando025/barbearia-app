@@ -4,9 +4,14 @@ from sqlalchemy import or_
 from datetime import datetime, date  # <--- adicionei date aqui
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
+from datetime import timedelta
+from supabase import create_client, Client
+
+
 
 SUPABASE_URL = 'https://fijsbauiupuamssehksw.supabase.co'
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_headers = {
     "apikey": SUPABASE_KEY,
     "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -15,237 +20,24 @@ supabase_headers = {
 
 
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:wordKey##@localhost:5433/barbearia'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = Falsefrom flask import Flask, render_template, request, redirect, url_for, flash, session
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import or_
-from datetime import datetime, date  # <--- adicionei date aqui
-from werkzeug.security import generate_password_hash, check_password_hash
-import requests
+from datetime import datetime
+@app.template_filter('datetimeformat')
+def datetimeformat(value, format='%d/%m/%Y'):
+    try:
+        dt = datetime.fromisoformat(value)
+        return dt.strftime(format)
+    except Exception:
+        return value  # se falhar, retorna valor cru
 
 app = Flask(__name__)
+#app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:wordKey##@localhost:5433/barbearia'
+#app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = '747d003611e2cb0afd469075f617e501'  # necessário para flash messages
+app.permanent_session_lifetime = timedelta(minutes=30)
 ADMIN_USERNAME = 'admin'
 ADMIN_PASSWORD = 'admin123'
 
-SUPABASE_URL = 'https://fijsbauiupuamssehksw.supabase.co'
-SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
-headers = {
-    "apikey": SUPABASE_KEY,
-    "Authorization": f"Bearer {SUPABASE_KEY}",
-    "Content-Type": "application/json"
-}
-
-# --- Funções auxiliares para CRUD no Supabase ---
-
-def supabase_get(table, filters=None):
-    url = f"{SUPABASE_URL}/rest/v1/{table}"
-    params = filters if filters else {}
-    response = requests.get(url, headers=headers, params=params)
-    if response.status_code == 200:
-        return response.json()
-    else:
-        print(f"Erro GET {table}: {response.status_code} {response.text}")
-        return None
-
-def supabase_post(table, data):
-    url = f"{SUPABASE_URL}/rest/v1/{table}"
-    response = requests.post(url, headers=headers, json=data)
-    if response.status_code in (200, 201):
-        return response.json()
-    else:
-        print(f"Erro POST {table}: {response.status_code} {response.text}")
-        return None
-
-def supabase_patch(table, id_value, data):
-    url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{id_value}"
-    response = requests.patch(url, headers=headers, json=data)
-    if response.status_code == 204:
-        return True
-    else:
-        print(f"Erro PATCH {table} id {id_value}: {response.status_code} {response.text}")
-        return False
-
-def supabase_delete(table, id_value):
-    url = f"{SUPABASE_URL}/rest/v1/{table}?id=eq.{id_value}"
-    response = requests.delete(url, headers=headers)
-    if response.status_code == 204:
-        return True
-    else:
-        print(f"Erro DELETE {table} id {id_value}: {response.status_code} {response.text}")
-        return False
-
-
-# --- Rotas para Barbeiros ---
-
-@app.route('/barbeiros')
-def listar_barbeiros():
-    barbeiros = supabase_get('barbeiros')
-    return render_template('painel_barbeiro.html', barbeiros=barbeiros)
-
-@app.route('/barbeiros/cadastrar', methods=['GET', 'POST'])
-def cadastrar_barbeiro():
-    if request.method == 'POST':
-        nome = request.form['nome']
-        email = request.form['email']
-        username = request.form['username']
-        senha = request.form['senha']
-        senha_hash = generate_password_hash(senha)
-
-        data = {
-            'nome': nome,
-            'email': email,
-            'username': username,
-            'senha': senha_hash
-        }
-        supabase_post('barbeiros', data)
-        return redirect(url_for('listar_barbeiros'))
-
-    return render_template('cadastrar_barbeiro.html')
-
-@app.route('/barbeiros/editar/<int:id>', methods=['GET', 'POST'])
-def editar_barbeiro(id):
-    if request.method == 'POST':
-        nome = request.form['nome']
-        email = request.form['email']
-        username = request.form['username']
-        senha = request.form.get('senha')
-        data = {
-            'nome': nome,
-            'email': email,
-            'username': username
-        }
-        if senha:
-            data['senha'] = generate_password_hash(senha)
-
-        supabase_patch('barbeiros', id, data)
-        return redirect(url_for('listar_barbeiros'))
-
-    barbeiro = supabase_get('barbeiros', {'id': f'eq.{id}'})
-    if barbeiro:
-        return render_template('editar_barbeiro.html', barbeiro=barbeiro[0])
-    return "Barbeiro não encontrado", 404
-
-@app.route('/barbeiros/deletar/<int:id>', methods=['POST'])
-def deletar_barbeiro(id):
-    supabase_delete('barbeiros', id)
-    return redirect(url_for('listar_barbeiros'))
-
-
-# --- Rotas para Cortes ---
-
-@app.route('/cortes')
-def listar_cortes():
-    cortes = supabase_get('cortes')
-    return render_template('cortes.html', cortes=cortes)
-
-@app.route('/cortes/cadastrar', methods=['GET', 'POST'])
-def cadastrar_corte():
-    if request.method == 'POST':
-        nome = request.form['nome']
-        preco = float(request.form['preco'])
-        data = {'nome': nome, 'preco': preco}
-        supabase_post('cortes', data)
-        return redirect(url_for('listar_cortes'))
-
-    return render_template('cadastrar_corte.html')
-
-@app.route('/cortes/editar/<int:id>', methods=['GET', 'POST'])
-def editar_corte(id):
-    if request.method == 'POST':
-        nome = request.form['nome']
-        preco = float(request.form['preco'])
-        data = {'nome': nome, 'preco': preco}
-        supabase_patch('cortes', id, data)
-        return redirect(url_for('listar_cortes'))
-
-    corte = supabase_get('cortes', {'id': f'eq.{id}'})
-    if corte:
-        return render_template('editar_corte.html', corte=corte[0])
-    return "Corte não encontrado", 404
-
-@app.route('/cortes/deletar/<int:id>', methods=['POST'])
-def deletar_corte(id):
-    supabase_delete('cortes', id)
-    return redirect(url_for('listar_cortes'))
-
-
-# --- Rotas para Agendamentos ---
-
-@app.route('/agendar', methods=['GET', 'POST'])
-def agendar():
-    if request.method == 'POST':
-        cliente = request.form['cliente']
-        barbeiro_id = int(request.form['barbeiro_id'])
-        corte_id = int(request.form['corte_id'])
-        data_hora = request.form['data_hora']
-
-        data = {
-            'cliente': cliente,
-            'barbeiro_id': barbeiro_id,
-            'corte_id': corte_id,
-            'data_hora': data_hora,
-            'concluido': False
-        }
-        supabase_post('agendamentos', data)
-        return redirect(url_for('listar_agendamentos'))
-
-    barbeiros = supabase_get('barbeiros')
-    cortes = supabase_get('cortes')
-    return render_template('agendar.html', barbeiros=barbeiros, cortes=cortes)
-
-@app.route('/agendamentos')
-def listar_agendamentos():
-    agendamentos = supabase_get('agendamentos')
-    return render_template('agendamentos.html', agendamentos=agendamentos)
-
-@app.route('/agendamentos/concluir/<int:id>', methods=['POST'])
-def concluir_agendamento(id):
-    sucesso = supabase_patch('agendamentos', id, {'concluido': True})
-    if sucesso:
-        return redirect(url_for('listar_agendamentos'))
-    return "Erro ao concluir agendamento", 400
-
-@app.route('/agendamentos/deletar/<int:id>', methods=['POST'])
-def deletar_agendamento(id):
-    supabase_delete('agendamentos', id)
-    return redirect(url_for('listar_agendamentos'))
-
-
-# --- Login e Logout ---
-
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        senha = request.form['senha']
-
-        usuarios = supabase_get('barbeiros', {'username': f'eq.{username}'})
-        if usuarios and len(usuarios) > 0:
-            usuario = usuarios[0]
-            if check_password_hash(usuario['senha'], senha):
-                session['usuario_id'] = usuario['id']
-                session['usuario_nome'] = usuario['nome']
-                return redirect(url_for('listar_agendamentos'))
-        return render_template('login.html', erro="Usuário ou senha inválidos")
-
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.clear()
-    return redirect(url_for('login'))
-
-
-if __name__ == '__main__':
-    app.run(debug=True)
-
-app.secret_key = '747d003611e2cb0afd469075f617e501'  # necessário para flash messages
-ADMIN_USERNAME = 'admin'
-ADMIN_PASSWORD = 'admin123'
-
-db = SQLAlchemy(app)
+#db = SQLAlchemy(app)
 
 # Modelos do banco
 
@@ -281,10 +73,12 @@ class Agendamento(db.Model):
     data = db.Column(db.Date)
     hora = db.Column(db.Time)
     concluido = db.Column(db.Boolean, default=False)
+    arquivado = db.Column(db.Boolean, default=False)  # ⬅️ NOVO
 
     corte = db.relationship('Corte')
     barbeiro = db.relationship('Barbeiro')
-
+    
+    
 # Rota inicial
 from flask import render_template
 
@@ -295,88 +89,53 @@ def index():
 
 
 
-@app.route('/agendar_cliente', methods=['GET', 'POST'])
-def agendar_cliente():
-    if request.method == 'POST':
-        nome_cliente = request.form['nome_cliente']
-        corte_id = request.form['corte_id']
-        barbeiro_id = request.form['barbeiro_id']
-        data = request.form['data']
-        hora = request.form['hora']
-
-        data_obj = datetime.strptime(data, '%Y-%m-%d').date()
-        hora_obj = datetime.strptime(hora, '%H:%M').time()
-
-        # Verificar se já existe agendamento nesse horário
-        existe = Agendamento.query.filter_by(barbeiro_id=barbeiro_id, data=data_obj, hora=hora_obj).first()
-        if existe:
-            flash('Horário indisponível. Escolha outro.', 'error')
-            return redirect(url_for('agendar_cliente'))
-
-        novo_agendamento = Agendamento(
-            nome_cliente=nome_cliente,
-            corte_id=corte_id,
-            barbeiro_id=barbeiro_id,
-            data=data_obj,
-            hora=hora_obj
-        )
-        db.session.add(novo_agendamento)
-        db.session.commit()
-        flash('Agendamento realizado com sucesso!', 'success')
-        return redirect(url_for('agendar_cliente'))
-
-    cortes = Corte.query.all()
-    barbeiros = Barbeiro.query.filter(Barbeiro.nome != 'Administrador').all()
-    return render_template('agendar_cliente.html', cortes=cortes, barbeiros=barbeiros)
-
-
-
-
 # Rota para agendamento
 @app.route('/agendar', methods=['GET', 'POST'])
 def agendar():
     if request.method == 'POST':
         nome_cliente = request.form['nome_cliente']
-        corte_id = request.form['corte_id']
-        barbeiro_id = request.form['barbeiro_id']
+        corte_id = int(request.form['corte_id'])
+        barbeiro_id = int(request.form['barbeiro_id'])
         data = request.form['data']
         hora = request.form['hora']
 
-        # Converter strings para tipos corretos
         data_obj = datetime.strptime(data, '%Y-%m-%d').date()
         hora_obj = datetime.strptime(hora, '%H:%M').time()
 
-        # Verificar se já existe agendamento para o barbeiro na data e hora
-        existe = Agendamento.query.filter_by(barbeiro_id=barbeiro_id, data=data_obj, hora=hora_obj).first()
-        if existe:
+        # Verificar se já existe agendamento para o barbeiro na data e hora via Supabase
+        response = supabase.table('agendamentos').select('*').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
+        
+        if response.data and len(response.data) > 0:
             flash('Horário indisponível. Escolha outro.', 'error')
             return redirect(url_for('agendar'))
 
-                # Enviar dados para o Supabase
-        supabase_url = f"{SUPABASE_URL}/rest/v1/agendamentos"
+        # Inserir novo agendamento no Supabase
+        insert_response = supabase.table('agendamentos').insert({
+            'nome_cliente': nome_cliente,
+            'corte_id': corte_id,
+            'barbeiro_id': barbeiro_id,
+            'data': data,
+            'hora': hora,
+            'concluido': False,
+            'arquivado': False
+        }).execute()
 
-        payload = {
-            "nome_cliente": nome_cliente,
-            "corte_id": int(corte_id),
-            "barbeiro_id": int(barbeiro_id),
-            "data": str(data_obj),
-            "hora": str(hora_obj),
-            "concluido": False
-        }
-
-        response = requests.post(supabase_url, headers=supabase_headers, json=payload)
-
-        if response.status_code == 201:
-            flash("Agendamento realizado com sucesso!", "success")
+        if insert_response.status_code == 201 or insert_response.status_code == 200:
+            flash('Agendamento realizado com sucesso!', 'success')
         else:
-            flash("Erro ao agendar. Verifique os dados.", "error")
+            flash('Erro ao realizar agendamento.', 'error')
 
         return redirect(url_for('index'))
 
+    # Para GET: buscar cortes e barbeiros do Supabase para mostrar no form
+    cortes_resp = supabase.table('cortes').select('*').execute()
+    barbeiros_resp = supabase.table('barbeiros').select('*').neq('nome', 'Administrador').execute()
 
-    cortes = Corte.query.all()
-    barbeiros = Barbeiro.query.filter(Barbeiro.nome != 'Administrador').all()
+    cortes = cortes_resp.data if cortes_resp.status_code == 200 else []
+    barbeiros = barbeiros_resp.data if barbeiros_resp.status_code == 200 else []
+
     return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
+
 
 
 
@@ -389,19 +148,24 @@ def login():
         username = request.form.get("username") or request.form.get("email")
         senha = request.form["senha"]
 
-        barbeiro = Barbeiro.query.filter(
-            or_(Barbeiro.username == username, Barbeiro.email == username)
-        ).first()
+        response = supabase.table('barbeiros').select('*').or_(
+            f"username.eq.{username},email.eq.{username}"
+        ).limit(1).execute()
 
-        if barbeiro and barbeiro.senha and check_password_hash(barbeiro.senha, senha):
-            session["barbeiro_id"] = barbeiro.id
-            session["barbeiro_nome"] = barbeiro.nome
-            session["is_admin"] = barbeiro.is_admin
+        if response.data and len(response.data) > 0:
+            user = response.data[0]
+            if user.get('senha') and check_password_hash(user['senha'], senha):
+                session.permanent = True
+                session["barbeiro_id"] = user['id']
+                session["barbeiro_nome"] = user['nome']
+                session["is_admin"] = user.get('is_admin', False)
 
-            if barbeiro.is_admin:
-                return redirect(url_for("painel_admin"))
+                if session["is_admin"]:
+                    return redirect(url_for("painel_admin"))
+                else:
+                    return redirect(url_for("painel_barbeiro"))
             else:
-                return redirect(url_for("painel_barbeiro"))
+                erro = "Usuário ou senha inválidos."
         else:
             erro = "Usuário ou senha inválidos."
 
@@ -417,72 +181,64 @@ def painel_barbeiro():
         return redirect(url_for('login'))
 
     barbeiro_id = session['barbeiro_id']
-    barbeiro = Barbeiro.query.get(barbeiro_id)  # se ainda usa o modelo
 
-    # Buscar agendamentos do barbeiro via Supabase
-    url = f"{SUPABASE_URL}/rest/v1/agendamentos?barbeiro_id=eq.{barbeiro_id}&select=*,cortes(*),barbeiros(*)"
-    response = requests.get(url, headers=supabase_headers)
+    # Buscar agendamentos no Supabase
+    response = supabase.table('agendamentos').select(
+        'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
+    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido', desc=True).order('data', desc=True).order('hora', desc=True).execute()
 
-    if response.status_code == 200:
-        agendamentos = response.json()
-    else:
+    if response.status_code != 200:
+        flash('Erro ao carregar agendamentos.', 'error')
         agendamentos = []
-        flash("Erro ao buscar agendamentos", "error")
+    else:
+        agendamentos = response.data
+
+    # Buscar dados do barbeiro no Supabase
+    barbeiro_resp = supabase.table('barbeiros').select('*').eq('id', barbeiro_id).single().execute()
+    barbeiro = barbeiro_resp.data if barbeiro_resp.status_code == 200 else None
 
     return render_template("painel_barbeiro.html", barbeiro=barbeiro, agendamentos=agendamentos)
+
+
     
 
 # Marcar agendamento como concluído
 @app.route('/concluir_agendamento/<int:agendamento_id>', methods=['POST'])
 def concluir_agendamento(agendamento_id):
-    agendamento = Agendamento.query.get_or_404(agendamento_id)
-    agendamento.concluido = True
-    db.session.commit()
+    # Atualizar o campo concluido para True no Supabase
+    response = supabase.table('agendamentos').update({'concluido': True}).eq('id', agendamento_id).execute()
+
+    # Você pode checar se a atualização deu certo, opcional
+    if response.status_code != 200:
+        flash('Erro ao marcar agendamento como concluído.', 'error')
+
     return redirect(url_for('painel_barbeiro'))
+
     
     
- #rota painel admin   
+# rota painel admin
 @app.route("/painel_admin")
 def painel_admin():
     if 'barbeiro_id' not in session or not session.get('is_admin'):
         return redirect(url_for('login'))
 
-    barbeiros = Barbeiro.query.all()
-    agendamentos = Agendamento.query.order_by(Agendamento.data, Agendamento.hora).all()
+    barbeiros_resp = supabase.table('barbeiros').select('*').execute()
+    barbeiros = barbeiros_resp.data if barbeiros_resp.status_code == 200 else []
+
+    agend_resp = supabase.table('agendamentos').select(
+        'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado'
+    ).eq('arquivado', False).execute()
+
+    agendamentos = agend_resp.data if agend_resp.status_code == 200 else []
+
+    # Ordenar agendamentos por concluido, data, hora (em Python)
+    agendamentos.sort(key=lambda x: (x['concluido'], x['data'], x['hora']), reverse=True)
+
     return render_template("painel_admin.html", barbeiros=barbeiros, agendamentos=agendamentos)
 
 
 
-#rota cadastro novo corte
-@app.route('/cadastrar_corte', methods=['GET', 'POST'])
-def cadastrar_corte():
-    if request.method == 'POST':
-        nome = request.form['nome']
-        preco = float(request.form['preco'])
 
-        novo_corte = Corte(nome=nome, preco=preco)
-        db.session.add(novo_corte)
-        db.session.commit()
-
-        return redirect(url_for('painel'))
-
-    return render_template('cadastrar_corte.html')
-    
-
-#rota para editar cortes
-@app.route('/editar_cortes', methods=['GET', 'POST'])
-def editar_cortes():
-    cortes = Corte.query.all()
-
-    if request.method == 'POST':
-        for corte in cortes:
-            novo_preco = request.form.get(f'preco_{corte.id}')
-            if novo_preco:
-                corte.preco = float(novo_preco)
-        db.session.commit()
-        return redirect(url_for('painel'))
-
-    return render_template('editar_cortes.html', cortes=cortes)
     
     
 #rota para gerenciar barbeiros
@@ -503,28 +259,30 @@ def gerenciar_barbeiros():
 
                 if id_str.startswith("-"):  # Novo barbeiro
                     if nome and email and username and senha:
-                        novo = Barbeiro(
-                            nome=nome,
-                            email=email,
-                            username=username,
-                            senha=generate_password_hash(senha)
-                        )
-                        db.session.add(novo)
-                else:  # Barbeiro existente
-                    barbeiro = Barbeiro.query.get(int(id_str))
-                    if barbeiro:
-                        barbeiro.nome = nome
-                        barbeiro.email = email
-                        barbeiro.username = username
-                        if senha:
-                            barbeiro.senha = generate_password_hash(senha)
+                        senha_hash = generate_password_hash(senha)
+                        supabase.table('barbeiros').insert({
+                            'nome': nome,
+                            'email': email,
+                            'username': username,
+                            'senha': senha_hash
+                        }).execute()
+                else:  # Atualizar barbeiro existente
+                    data_update = {
+                        'nome': nome,
+                        'email': email,
+                        'username': username,
+                    }
+                    if senha:
+                        data_update['senha'] = generate_password_hash(senha)
+                    supabase.table('barbeiros').update(data_update).eq('id', int(id_str)).execute()
 
-        db.session.commit()
         flash("Barbeiros atualizados com sucesso.")
         return redirect(url_for('gerenciar_barbeiros'))
 
-    barbeiros = Barbeiro.query.all()
+    response = supabase.table('barbeiros').select('*').execute()
+    barbeiros = response.data if response.status_code == 200 else []
     return render_template('gerenciar_barbeiros.html', barbeiros=barbeiros)
+
 
  
 
@@ -546,25 +304,75 @@ def gerenciar_cortes():
                     continue
 
                 try:
-                    preco = float(preco)
+                    preco_float = float(preco)
                 except ValueError:
                     continue
 
                 if id_str.startswith("-"):  # Novo corte
-                    novo = Corte(nome=nome, preco=preco)
-                    db.session.add(novo)
-                else:  # Corte existente
-                    corte = Corte.query.get(int(id_str))
-                    if corte:
-                        corte.nome = nome
-                        corte.preco = preco
+                    insert_resp = supabase.table('cortes').insert({
+                        'nome': nome,
+                        'preco': preco_float
+                    }).execute()
+                    if insert_resp.status_code not in (200, 201):
+                        flash(f"Erro ao inserir corte {nome}.", 'error')
 
-        db.session.commit()
+                else:  # Corte existente
+                    corte_id = int(id_str)
+                    update_resp = supabase.table('cortes').update({
+                        'nome': nome,
+                        'preco': preco_float
+                    }).eq('id', corte_id).execute()
+                    if update_resp.status_code != 200:
+                        flash(f"Erro ao atualizar corte {nome}.", 'error')
+
         flash("Cortes atualizados com sucesso.")
         return redirect(url_for('gerenciar_cortes'))
 
-    cortes = Corte.query.all()
+    cortes_resp = supabase.table('cortes').select('*').execute()
+    cortes = cortes_resp.data if cortes_resp.status_code == 200 else []
+
     return render_template('gerenciar_cortes.html', cortes=cortes)
+
+    
+
+    
+@app.route('/arquivados')
+def listar_arquivados():
+    origem = request.args.get('origem', 'barbeiro')
+    
+    # Busca agendamentos arquivados no Supabase, ordenando por data e hora desc
+    response = (
+        supabase
+        .table('agendamentos')
+        .select('*')
+        .eq('arquivado', True)
+        .order('data', desc=True)
+        .order('hora', desc=True)
+        .execute()
+    )
+
+    agendamentos = []
+    if response.status_code == 200:
+        agendamentos = response.data
+    
+    return render_template('arquivados.html', agendamentos=agendamentos, origem=origem)
+
+    
+    
+@app.route('/arquivar/<int:agendamento_id>', methods=['POST'])
+def arquivar_agendamento(agendamento_id):
+    origem = request.args.get('origem', 'barbeiro')
+    response = supabase.table('agendamentos').update({'arquivado': True}).eq('id', agendamento_id).execute()
+    if response.status_code != 200:
+        flash('Erro ao arquivar agendamento.', 'error')
+
+    if origem == 'admin':
+        return redirect(url_for('painel_admin'))
+    else:
+        return redirect(url_for('painel_barbeiro'))
+
+
+    
     
   
 # Logout
@@ -574,4 +382,5 @@ def logout():
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)
+
