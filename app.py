@@ -41,44 +41,7 @@ ADMIN_PASSWORD = 'admin123'
 
 #db = SQLAlchemy(app)
 
-# Modelos do banco
 
-class Corte(db.Model):
-    __tablename__ = 'cortes'
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(100), nullable=False)
-    preco = db.Column(db.Numeric(10, 2), nullable=False)
-
-class Barbeiro(db.Model):
-    __tablename__ = 'barbeiros'
-    id = db.Column(db.Integer, primary_key=True)
-    nome = db.Column(db.String(255), nullable=False)
-    email = db.Column(db.String(255), unique=True)
-    senha = db.Column(db.String(255))
-    username = db.Column(db.String(100), unique=True) 
-    is_admin = db.Column(db.Boolean, default=False)
-
-    
-    def set_senha(self, senha_texto):  # corrigi 'Self' para 'self'
-        self.senha = generate_password_hash(senha_texto)
-        
-    def checar_senha(self, senha_texto):
-        return check_password_hash(self.senha, senha_texto)
-
-class Agendamento(db.Model):
-    __tablename__ = 'agendamentos'
-
-    id = db.Column(db.Integer, primary_key=True)
-    nome_cliente = db.Column(db.String(100))
-    corte_id = db.Column(db.Integer, db.ForeignKey('cortes.id'))  # chave estrangeira para tabela cortes
-    barbeiro_id = db.Column(db.Integer, db.ForeignKey('barbeiros.id'))
-    data = db.Column(db.Date)
-    hora = db.Column(db.Time)
-    concluido = db.Column(db.Boolean, default=False)
-    arquivado = db.Column(db.Boolean, default=False)  # ⬅️ NOVO
-
-    corte = db.relationship('Corte')
-    barbeiro = db.relationship('Barbeiro')
     
     
 # Rota inicial
