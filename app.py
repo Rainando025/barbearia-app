@@ -97,7 +97,7 @@ def agendar():
     barbeiros_resp = supabase.table('barbeiros').select('*').neq('nome', 'Administrador').execute()
 
     cortes = cortes_resp.data or []
-    barbeiros = barbeiros_resp.data if barbeiros_resp.status_code == 200 else []
+    barbeiros = barbeiros_resp.data or []
 
     return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
 
