@@ -9,6 +9,8 @@ from supabase import create_client, Client
 
 
 
+app = Flask(__name__)
+
 SUPABASE_URL = 'https://fijsbauiupuamssehksw.supabase.co'
 SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -29,7 +31,7 @@ def datetimeformat(value, format='%d/%m/%Y'):
     except Exception:
         return value  # se falhar, retorna valor cru
 
-app = Flask(__name__)
+
 #app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:wordKey##@localhost:5433/barbearia'
 #app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.secret_key = '747d003611e2cb0afd469075f617e501'  # necessário para flash messages
