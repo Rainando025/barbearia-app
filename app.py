@@ -152,17 +152,17 @@ def painel_barbeiro():
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
     ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido', desc=True).order('data', desc=True).order('hora', desc=True).execute()
 
-        try:
+    try:
             agendamentos = response.data
-        except Exception as e:
+    except Exception as e:
             flash('Erro ao carregar agendamentos.', 'error')
             agendamentos = []
 
     # Buscar dados do barbeiro no Supabase
     barbeiro_resp = supabase.table('barbeiros').select('*').eq('id', barbeiro_id).single().execute()
-        try:
+    try:
             barbeiro = barbeiro_resp.data
-        except Exception:
+    except Exception:
             barbeiro = None
 
     return render_template("painel_barbeiro.html", barbeiro=barbeiro, agendamentos=agendamentos)
@@ -191,18 +191,18 @@ def painel_admin():
         return redirect(url_for('login'))
 
     barbeiros_resp = supabase.table('barbeiros').select('*').execute()
-        try:
+    try:
             barbeiros = barbeiros_resp.data
-        except Exception:
+    except Exception:
             barbeiros = []
 
     agend_resp = supabase.table('agendamentos').select(
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado'
     ).eq('arquivado', False).execute()
 
-        try:
+    try:
             agendamentos = agend_resp.data
-        except Exception:
+    except Exception:
             agendamentos = []
 
     # Ordenar agendamentos por concluido, data, hora (em Python)
@@ -254,9 +254,9 @@ def gerenciar_barbeiros():
         return redirect(url_for('gerenciar_barbeiros'))
 
     response = supabase.table('barbeiros').select('*').execute()
-            try:
+        try:
                 barbeiros = response.data
-            except Exception:
+        except Exception:
                 barbeiros = []
     return render_template('gerenciar_barbeiros.html', barbeiros=barbeiros)
 
