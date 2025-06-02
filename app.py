@@ -65,7 +65,7 @@ def agendar():
         hora_obj = datetime.strptime(hora, '%H:%M').time()
 
         # Verificar se já existe agendamento para o barbeiro na data e hora via Supabase
-        response = supabase.table('agendamentos').select('*, cortes(*), barbeiros(*)').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
+        response = supabase.table('agendamentos').select('*, cortes(nome), barbeiros(nome)').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
        
         
         if response.data and len(response.data) > 0:
