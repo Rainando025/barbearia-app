@@ -85,7 +85,7 @@ def agendar():
             'arquivado': False
         }).execute()
 
-        if insert_response.status_code == 201 or insert_response.status_code == 200:
+        if insert_response.error is None:
             flash('Agendamento realizado com sucesso!', 'success')
         else:
             flash('Erro ao realizar agendamento.', 'error')
@@ -152,7 +152,7 @@ def painel_barbeiro():
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
     ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido', desc=True).order('data', desc=True).order('hora', desc=True).execute()
 
-    if response.status_code != 200:
+    if response.error is not None:
         flash('Erro ao carregar agendamentos.', 'error')
         agendamentos = []
     else:
@@ -160,7 +160,8 @@ def painel_barbeiro():
 
     # Buscar dados do barbeiro no Supabase
     barbeiro_resp = supabase.table('barbeiros').select('*').eq('id', barbeiro_id).single().execute()
-    barbeiro = barbeiro_resp.data if barbeiro_resp.status_code == 200 else None
+    barbeiro = barbeiro_resp.data if barbeiro_resp.error is None else None
+
 
     return render_template("painel_barbeiro.html", barbeiro=barbeiro, agendamentos=agendamentos)
 
@@ -174,7 +175,7 @@ def concluir_agendamento(agendamento_id):
     response = supabase.table('agendamentos').update({'concluido': True}).eq('id', agendamento_id).execute()
 
     # Você pode checar se a atualização deu certo, opcional
-    if response.status_code != 200:
+    if response.error is not None:
         flash('Erro ao marcar agendamento como concluído.', 'error')
 
     return redirect(url_for('painel_barbeiro'))
@@ -188,13 +189,13 @@ def painel_admin():
         return redirect(url_for('login'))
 
     barbeiros_resp = supabase.table('barbeiros').select('*').execute()
-    barbeiros = barbeiros_resp.data if barbeiros_resp.status_code == 200 else []
+    barbeiros = barbeiros_resp.data if barbeiros_resp.error is None else []
 
     agend_resp = supabase.table('agendamentos').select(
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado'
     ).eq('arquivado', False).execute()
 
-    agendamentos = agend_resp.data if agend_resp.status_code == 200 else []
+    agendamentos = agend_resp.data if agend_resp.error is None else []
 
     # Ordenar agendamentos por concluido, data, hora (em Python)
     agendamentos.sort(key=lambda x: (x['concluido'], x['data'], x['hora']), reverse=True)
@@ -245,7 +246,7 @@ def gerenciar_barbeiros():
         return redirect(url_for('gerenciar_barbeiros'))
 
     response = supabase.table('barbeiros').select('*').execute()
-    barbeiros = response.data if response.status_code == 200 else []
+    barbeiros = response.data if response.error is None else []
     return render_template('gerenciar_barbeiros.html', barbeiros=barbeiros)
 
 
@@ -296,7 +297,7 @@ def gerenciar_cortes():
         return redirect(url_for('gerenciar_cortes'))
 
     cortes_resp = supabase.table('cortes').select('*').execute()
-    cortes = cortes_resp.data if cortes_resp.status_code == 200 else []
+    cortes = cortes_resp.data if cortes_resp.error is None else []
 
     return render_template('gerenciar_cortes.html', cortes=cortes)
 
@@ -319,7 +320,7 @@ def listar_arquivados():
     )
 
     agendamentos = []
-    if response.status_code == 200:
+    if response.data:
         agendamentos = response.data
     
     return render_template('arquivados.html', agendamentos=agendamentos, origem=origem)
@@ -330,7 +331,7 @@ def listar_arquivados():
 def arquivar_agendamento(agendamento_id):
     origem = request.args.get('origem', 'barbeiro')
     response = supabase.table('agendamentos').update({'arquivado': True}).eq('id', agendamento_id).execute()
-    if response.status_code != 200:
+    if response.error:
         flash('Erro ao arquivar agendamento.', 'error')
 
     if origem == 'admin':
