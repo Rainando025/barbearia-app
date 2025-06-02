@@ -85,7 +85,7 @@ def agendar():
             'arquivado': False
         }).execute()
 
-        if insert_response.error is None:
+        if insert_response.data:
             flash('Agendamento realizado com sucesso!', 'success')
         else:
             flash('Erro ao realizar agendamento.', 'error')
@@ -152,16 +152,18 @@ def painel_barbeiro():
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
     ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido', desc=True).order('data', desc=True).order('hora', desc=True).execute()
 
-    if response.error is not None:
-        flash('Erro ao carregar agendamentos.', 'error')
-        agendamentos = []
-    else:
-        agendamentos = response.data
+        try:
+            agendamentos = response.data
+        except Exception as e:
+            flash('Erro ao carregar agendamentos.', 'error')
+            agendamentos = []
 
     # Buscar dados do barbeiro no Supabase
     barbeiro_resp = supabase.table('barbeiros').select('*').eq('id', barbeiro_id).single().execute()
-    barbeiro = barbeiro_resp.data if barbeiro_resp.error is None else None
-
+        try:
+            barbeiro = barbeiro_resp.data
+        except Exception:
+            barbeiro = None
 
     return render_template("painel_barbeiro.html", barbeiro=barbeiro, agendamentos=agendamentos)
 
@@ -189,13 +191,19 @@ def painel_admin():
         return redirect(url_for('login'))
 
     barbeiros_resp = supabase.table('barbeiros').select('*').execute()
-    barbeiros = barbeiros_resp.data if barbeiros_resp.error is None else []
+        try:
+            barbeiros = barbeiros_resp.data
+        except Exception:
+            barbeiros = []
 
     agend_resp = supabase.table('agendamentos').select(
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado'
     ).eq('arquivado', False).execute()
 
-    agendamentos = agend_resp.data if agend_resp.error is None else []
+        try:
+            agendamentos = agend_resp.data
+        except Exception:
+            agendamentos = []
 
     # Ordenar agendamentos por concluido, data, hora (em Python)
     agendamentos.sort(key=lambda x: (x['concluido'], x['data'], x['hora']), reverse=True)
@@ -246,7 +254,10 @@ def gerenciar_barbeiros():
         return redirect(url_for('gerenciar_barbeiros'))
 
     response = supabase.table('barbeiros').select('*').execute()
-    barbeiros = response.data if response.error is None else []
+            try:
+                barbeiros = response.data
+            except Exception:
+                barbeiros = []
     return render_template('gerenciar_barbeiros.html', barbeiros=barbeiros)
 
 
