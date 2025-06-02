@@ -263,43 +263,31 @@ def gerenciar_barbeiros():
  
 
 #rota para gerenciar cortes 
-@app.route('/gerenciar_cortes', methods=['GET', 'POST'])
 def gerenciar_cortes():
-    if 'barbeiro_id' not in session or not session.get('is_admin'):
-        flash("Acesso negado.")
-        return redirect(url_for('login'))
+    st.subheader("Gerenciar Cortes")
+    cortes = supabase.table("cortes").select("*").execute().data
 
-    if request.method == 'POST':
-        for key in request.form:
-            if key.startswith("nome_"):
-                id_str = key.split("_")[1]
-                nome = request.form.get(f"nome_{id_str}")
-                preco = request.form.get(f"preco_{id_str}")
+    if not cortes:
+        st.info("Nenhum corte cadastrado.")
+        return
 
-                if not nome or not preco:
-                    continue  # pula campos incompletos
+    for corte in cortes:
+        with st.expander(f"{corte['nome']} - R${corte['preco']:.2f}"):
+            novo_nome = st.text_input("Novo nome", value=corte["nome"], key=f"nome_{corte['id']}")
+            novo_preco = st.number_input("Novo preço", value=corte["preco"], step=1.0, format="%.2f", key=f"preco_{corte['id']}")
 
-                if id_str.startswith("-"):  # novo corte
-                    supabase.table('cortes').insert({
-                        'nome': nome,
-                        'preco': float(preco)
-                    }).execute()
-                else:  # atualizar corte existente
-                    supabase.table('cortes').update({
-                        'nome': nome,
-                        'preco': float(preco)
-                    }).eq('id', int(id_str)).execute()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Atualizar", key=f"atualizar_{corte['id']}"):
+                    supabase.table("cortes").update({"nome": novo_nome, "preco": novo_preco}).eq("id", corte["id"]).execute()
+                    st.success("Corte atualizado com sucesso!")
+                    st.experimental_rerun()
+            with col2:
+                if st.button("Excluir", key=f"excluir_{corte['id']}"):
+                    supabase.table("cortes").delete().eq("id", corte["id"]).execute()
+                    st.warning("Corte excluído!")
+                    st.experimental_rerun()
 
-        flash("Cortes atualizados com sucesso.")
-        return redirect(url_for('gerenciar_cortes'))
-
-    response = supabase.table('cortes').select('*').execute()
-    try:
-        cortes = response.data
-    except Exception:
-        cortes = []
-
-    return render_template('gerenciar_cortes.html', cortes=cortes)
 
     
 
