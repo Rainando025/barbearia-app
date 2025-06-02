@@ -1,18 +1,17 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import or_
-from datetime import datetime, date  # <--- adicionei date aqui
+from datetime import datetime, date, timedelta  # <--- adicionei date aqui
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
-from datetime import timedelta
 from supabase import create_client, Client
 
 
 
 app = Flask(__name__)
 
-SUPABASE_URL = 'https://fijsbauiupuamssehksw.supabase.co'
-SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
+SUPABASE_URL = os.getenv 'https://fijsbauiupuamssehksw.supabase.co'
+SUPABASE_KEY = os.getenv 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_headers = {
     "apikey": SUPABASE_KEY,
@@ -44,7 +43,6 @@ ADMIN_PASSWORD = 'admin123'
     
     
 # Rota inicial
-from flask import render_template
 
 @app.route('/')
 def index():
@@ -150,7 +148,7 @@ def painel_barbeiro():
     # Buscar agendamentos no Supabase
     response = supabase.table('agendamentos').select(
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
-    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido', desc=True).order('data', desc=True).order('hora', desc=True).execute()
+    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False)..order('concluido,data,hora', desc=True).execute()
 
     try:
             agendamentos = response.data
@@ -254,11 +252,12 @@ def gerenciar_barbeiros():
         return redirect(url_for('gerenciar_barbeiros'))
 
     response = supabase.table('barbeiros').select('*').execute()
-        try:
-                barbeiros = response.data
-        except Exception:
-                barbeiros = []
+    try:
+        barbeiros = response.data
+    except Exception:
+        barbeiros = []
     return render_template('gerenciar_barbeiros.html', barbeiros=barbeiros)
+
 
 
  
@@ -278,37 +277,27 @@ def gerenciar_cortes():
                 preco = request.form.get(f"preco_{id_str}")
 
                 if not nome or not preco:
-                    continue
+                    continue  # pula campos incompletos
 
-                try:
-                    preco_float = float(preco)
-                except ValueError:
-                    flash(f"Preço inválido para o corte: {nome}", "error")
-                    continue
-
-
-                if id_str.startswith("-"):  # Novo corte
-                    insert_resp = supabase.table('cortes').insert({
+                if id_str.startswith("-"):  # novo corte
+                    supabase.table('cortes').insert({
                         'nome': nome,
-                        'preco': preco_float
+                        'preco': float(preco)
                     }).execute()
-                    if insert_resp.status_code not in (200, 201):
-                        flash(f"Erro ao inserir corte {nome}.", 'error')
-
-                else:  # Corte existente
-                    corte_id = int(id_str)
-                    update_resp = supabase.table('cortes').update({
+                else:  # atualizar corte existente
+                    supabase.table('cortes').update({
                         'nome': nome,
-                        'preco': preco_float
-                    }).eq('id', corte_id).execute()
-                    if update_resp.status_code != 200:
-                        flash(f"Erro ao atualizar corte {nome}.", 'error')
+                        'preco': float(preco)
+                    }).eq('id', int(id_str)).execute()
 
         flash("Cortes atualizados com sucesso.")
         return redirect(url_for('gerenciar_cortes'))
 
-    cortes_resp = supabase.table('cortes').select('*').execute()
-    cortes = cortes_resp.data if cortes_resp.error is None else []
+    response = supabase.table('cortes').select('*').execute()
+    try:
+        cortes = response.data
+    except Exception:
+        cortes = []
 
     return render_template('gerenciar_cortes.html', cortes=cortes)
 
