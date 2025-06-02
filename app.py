@@ -148,7 +148,7 @@ def painel_barbeiro():
     # Buscar agendamentos no Supabase
     response = supabase.table('agendamentos').select(
         'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
-    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False)..order('concluido,data,hora', desc=True).execute()
+    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido,data,hora', desc=True).execute()
 
     try:
             agendamentos = response.data
