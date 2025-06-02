@@ -10,8 +10,8 @@ from supabase import create_client, Client
 
 app = Flask(__name__)
 
-SUPABASE_URL = os.getenv 'https://fijsbauiupuamssehksw.supabase.co'
-SUPABASE_KEY = os.getenv 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
+SUPABASE_URL =  'https://fijsbauiupuamssehksw.supabase.co'
+SUPABASE_KEY =  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA'
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_headers = {
     "apikey": SUPABASE_KEY,
