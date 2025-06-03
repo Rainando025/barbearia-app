@@ -1,6 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, session
-
-from sqlalchemy import or_
 from datetime import datetime, date, timedelta  # <--- adicionei date aqui
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
