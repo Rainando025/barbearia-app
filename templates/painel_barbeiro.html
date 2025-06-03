@@ -107,7 +107,7 @@
 
                         {% if agendamento['concluido'] and not agendamento['arquivado'] %}
                             <form method="POST" action="{{ url_for('arquivar_agendamento', agendamento_id=agendamento['id']) }}">
-                                <button type="submit" class="btn btn-secondary btn-sm mt-2" onclick ="this.innerText='Arquivando...';">Arquivar</button>
+                                <button type="submit" class="btn btn-secondary btn-sm mt-2" onclick="this.innerText='Arquivando...';">Arquivar</button>
                             </form>
                         {% endif %}
                     </div>
@@ -117,11 +117,9 @@
             <p>Você não tem agendamentos para hoje.</p>
         {% endif %}
 
-        {% if session.get('barbeiro_username') == 'admin' %}
+        {% if session.get('is_admin') %}
             <div class="admin-section">
-                <h4>🔧 Gerenciar Barbeiros</h4>
-                <a href="{{ url_for('listar_barbeiros') }}" class="btn btn-warning m-2">Ver Lista de Barbeiros</a>
-                <a href="{{ url_for('redefinir_senha', id=barbeiro['id']) }}" class="btn btn-secondary m-2">Redefinir Senha</a>
+                <h4>🔧 Administração</h4>
                 <a href="{{ url_for('listar_arquivados') }}" class="btn btn-outline-light mt-3">Ver Arquivados</a>
             </div>
         {% endif %}
