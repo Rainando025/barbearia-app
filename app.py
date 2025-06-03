@@ -63,7 +63,7 @@ def agendar():
         hora_obj = datetime.strptime(hora, '%H:%M').time()
 
         # Verificar se já existe agendamento para o barbeiro na data e hora via Supabase
-        response = supabase.table('agendamentos').select('*, cortes!fk_agendamento_corte(nome), barbeiros(nome)').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
+        response = supabase.table('agendamentos').select('*, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
        
         
         if response.data and len(response.data) > 0:
@@ -144,9 +144,7 @@ def painel_barbeiro():
     barbeiro_id = session['barbeiro_id']
 
     # Buscar agendamentos no Supabase
-    response = supabase.table('agendamentos').select(
-        'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, corte(nome), barbeiro(nome)'
-    ).eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido,data,hora', desc=True).execute()
+    response = supabase.table('agendamentos').select('id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)').eq('barbeiro_id', barbeiro_id).eq('arquivado', False).order('concluido,data,hora', desc=True).execute()
 
     try:
             agendamentos = response.data
@@ -193,7 +191,7 @@ def painel_admin():
             barbeiros = []
 
     agend_resp = supabase.table('agendamentos').select(
-        'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado'
+       'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)'
     ).eq('arquivado', False).execute()
 
     try:
