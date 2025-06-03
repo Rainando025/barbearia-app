@@ -4,18 +4,13 @@
     <meta charset="UTF-8" />
     <title>Agendar Corte</title>
 
-    <!-- Bootstrap CDN (opcional, para grid e estilo base) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
-
-    <!-- Fonte retrô Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Staatliches&display=swap" rel="stylesheet" />
-
     <style>
         body {
             margin: 0;
             padding: 0;
-            font-family: 'Staatliches', sans-serif;
-            background-image: url('static/img/barbearia23.jpg');
+            font-family: 'Segoe UI', sans-serif;
+            background-image: url("{{ url_for('static', filename='img/barbearia23.jpg') }}");
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
@@ -28,17 +23,17 @@
         }
 
         .form-container {
-            background-color: rgba(0, 0, 0, 0.8); /* fundo escuro semitransparente */
+            background-color: rgba(0, 0, 0, 0.8);
             padding: 30px;
             border-radius: 15px;
             max-width: 500px;
             width: 100%;
-            box-shadow: 0 0 20px rgba(92, 64, 51, 0.7); /* sombra marrom */
+            box-shadow: 0 0 20px rgba(92, 64, 51, 0.7);
         }
 
         label {
             margin-top: 10px;
-            color: #FFD700; /* dourado */
+            color: #FFD700;
         }
 
         input, select {
@@ -53,7 +48,7 @@
         button {
             width: 100%;
             padding: 12px;
-            background-color: #D2691E; /* laranja escuro */
+            background-color: #D2691E;
             color: white;
             border: none;
             border-radius: 8px;
@@ -63,7 +58,7 @@
         }
 
         button:hover {
-            background-color: #8B4513; /* marrom escuro */
+            background-color: #8B4513;
         }
 
         h1 {
@@ -71,37 +66,40 @@
             margin-bottom: 20px;
             color: #FFDEAD;
         }
-
-        #msgSucesso, #msgErro {
-            text-align: center;
-            margin-top: 10px;
-            font-weight: bold;
-        }
-
-        #msgSucesso {
-            color: #28a745;
-        }
-
-        #msgErro {
-            color: #dc3545;
-        }
     </style>
 </head>
 <body>
     <div class="form-container">
         <h1>Agendar Corte</h1>
-        <form id="formAgendar">
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }}" role="alert">
+                {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST">
             <label for="nome_cliente">Seu nome:</label>
             <input type="text" id="nome_cliente" name="nome_cliente" required />
 
-            <label for="corte">Tipo de corte:</label>
-            <select id="corte" name="corte_id" required>
-                <option value="">Carregando cortes...</option>
+            <label for="corte_id">Tipo de corte:</label>
+            <select id="corte_id" name="corte_id" required>
+                <option value="">Selecione</option>
+                {% for corte in cortes %}
+                    <option value="{{ corte['id'] }}">{{ corte['nome'] }} - R$ {{ '%.2f'|format(corte['preco']) }}</option>
+                {% endfor %}
             </select>
 
-            <label for="barbeiro">Barbeiro:</label>
-            <select id="barbeiro" name="barbeiro_id" required>
-                <option value="">Carregando barbeiros...</option>
+            <label for="barbeiro_id">Barbeiro:</label>
+            <select id="barbeiro_id" name="barbeiro_id" required>
+                <option value="">Selecione</option>
+                {% for barbeiro in barbeiros %}
+                    <option value="{{ barbeiro['id'] }}">{{ barbeiro['nome'] }}</option>
+                {% endfor %}
             </select>
 
             <label for="data">Data:</label>
@@ -112,91 +110,6 @@
 
             <button type="submit">Agendar</button>
         </form>
-        <div id="msgSucesso" style="display:none;">Agendamento realizado com sucesso!</div>
-        <div id="msgErro" style="display:none;">Erro ao agendar. Tente novamente.</div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script>
-        // Inicialize seu cliente Supabase aqui (substitua URL e KEY)
-        const supabaseUrl = 'https://fijsbauiupuamssehksw.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA';
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-        async function carregarCortes() {
-            const { data, error } = await supabase.from('cortes').select('*').order('nome');
-            const selectCortes = document.getElementById('corte');
-            selectCortes.innerHTML = '';
-            if (error) {
-                selectCortes.innerHTML = '<option value="">Erro ao carregar cortes</option>';
-                console.error(error);
-                return;
-            }
-            data.forEach(corte => {
-                const option = document.createElement('option');
-                option.value = corte.id;
-                option.textContent = `${corte.nome} - R$ ${corte.preco}`;
-                selectCortes.appendChild(option);
-            });
-        }
-
-        async function carregarBarbeiros() {
-            const { data, error } = await supabase.from('barbeiros').select('*').order('nome');
-            const selectBarbeiros = document.getElementById('barbeiro');
-            selectBarbeiros.innerHTML = '';
-            if (error) {
-                selectBarbeiros.innerHTML = '<option value="">Erro ao carregar barbeiros</option>';
-                console.error(error);
-                return;
-            }
-            data.forEach(barbeiro => {
-                const option = document.createElement('option');
-                option.value = barbeiro.id;
-                option.textContent = barbeiro.nome;
-                selectBarbeiros.appendChild(option);
-            });
-        }
-
-        document.getElementById('formAgendar').addEventListener('submit', async (e) => {
-            e.preventDefault();
-
-            const nome_cliente = document.getElementById('nome_cliente').value.trim();
-            const corte_id = document.getElementById('corte').value;
-            const barbeiro_id = document.getElementById('barbeiro').value;
-            const data = document.getElementById('data').value;
-            const hora = document.getElementById('hora').value;
-
-            if (!nome_cliente || !corte_id || !barbeiro_id || !data || !hora) {
-                alert('Preencha todos os campos!');
-                return;
-            }
-
-            const { data: result, error } = await supabase.from('agendamentos').insert([{
-                nome_cliente,
-                corte_id: parseInt(corte_id),
-                barbeiro_id: parseInt(barbeiro_id),
-                data,
-                hora,
-                concluido: false,
-                arquivado: false
-            }]);
-
-            if (error) {
-                console.error(error);
-                document.getElementById('msgErro').style.display = 'block';
-                document.getElementById('msgSucesso').style.display = 'none';
-            } else {
-                document.getElementById('msgSucesso').style.display = 'block';
-                document.getElementById('msgErro').style.display = 'none';
-                document.getElementById('formAgendar').reset();
-            }
-        });
-
-        // Ao carregar a página, carregar cortes e barbeiros
-        window.addEventListener('DOMContentLoaded', () => {
-            carregarCortes();
-            carregarBarbeiros();
-        });
-    </script>
 </body>
 </html>
