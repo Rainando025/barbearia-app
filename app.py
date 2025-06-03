@@ -185,19 +185,13 @@ def painel_admin():
         return redirect(url_for('login'))
 
     barbeiros_resp = supabase.table('barbeiros').select('*').execute()
-    try:
-            barbeiros = barbeiros_resp.data
-    except Exception:
-            barbeiros = []
+    barbeiros = barbeiros_resp.data if barbeiros_resp.data else []
 
     agend_resp = supabase.table('agendamentos').select(
        'id, nome_cliente, corte_id, barbeiro_id, data, hora, concluido, arquivado, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)'
     ).eq('arquivado', False).execute()
 
-    try:
-            agendamentos = agend_resp.data
-    except Exception:
-            agendamentos = []
+    agendamentos = agend_resp.data if agend_resp.data else []
 
     # Ordenar agendamentos por concluido, data, hora (em Python)
     agendamentos.sort(key=lambda x: (x['concluido'], x['data'], x['hora']), reverse=True)
