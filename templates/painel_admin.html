@@ -3,21 +3,13 @@
 <head>
     <meta charset="UTF-8" />
     <title>Painel do Administrador</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
-      rel="stylesheet"
-    />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <style>
         body {
-            background-image: url("static/barbearia4.jpg");
+            background-image: url("{{ url_for('static', filename='barbearia4.jpg') }}");
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
-            background-repeat: no-repeat;
             font-family: 'Segoe UI', sans-serif;
             color: #fff;
         }
@@ -27,64 +19,33 @@
             min-height: 100vh;
             padding: 40px;
             border-radius: 15px;
-            box-shadow: 0 0 10px #000;
         }
 
         h2, h3, h4 {
             color: #ff914d;
         }
 
-        .barbearia-table {
-            border-collapse: collapse;
-            width: 100%;
-        }
-
-        .barbearia-table thead {
-            background-color: #5c3d2e;
-            color: #fff;
-        }
-
-        .barbearia-table th,
-        .barbearia-table td {
+        table {
             background-color: #2b1b12;
-            color: #f5f5f5;
-            border: 1px solid #7a4f2f;
-            vertical-align: middle;
-            padding: 10px;
-        }
-
-        .barbearia-table tbody tr:hover {
-            background-color: rgba(255, 145, 77, 0.15);
         }
 
         .btn-custom {
-            color: #fff;
-            border: none;
             margin-right: 10px;
         }
 
         .btn-primary {
             background-color: #ff914d;
-        }
-
-        .btn-primary:hover {
-            background-color: #e67e22;
+            border: none;
         }
 
         .btn-success {
             background-color: #a8652e;
-        }
-
-        .btn-success:hover {
-            background-color: #8d4d1f;
+            border: none;
         }
 
         .btn-danger {
             background-color: #993333;
-        }
-
-        .btn-danger:hover {
-            background-color: #7a1e1e;
+            border: none;
         }
 
         .badge-success {
@@ -95,33 +56,17 @@
             background-color: #ffc107;
             color: #000;
         }
-
-        .icon {
-            margin-right: 5px;
-        }
-
-        hr {
-            border-top: 1px solid #ff914d;
-        }
-
-        @media (max-width: 768px) {
-            h2, h3 {
-                text-align: center;
-            }
-        }
     </style>
 </head>
 <body>
     <div class="container overlay mt-5">
-        <h2><i class="fa-solid fa-circle-user"></i> Painel do Administrador</h2>
+        <h2>👑 Painel do Administrador</h2>
+        <h3 class="mt-4 mb-3">Agendamentos</h3>
 
-        <h3 class="mb-3">Agendamentos</h3>
+        {% if agendamentos %}
         <div class="table-responsive">
-            <table
-              id="agendamentosTable"
-              class="table barbearia-table table-hover align-middle text-center"
-            >
-                <thead>
+            <table class="table table-bordered table-hover text-center text-light">
+                <thead class="table-dark">
                     <tr>
                         <th>Cliente</th>
                         <th>Barbeiro</th>
@@ -129,144 +74,49 @@
                         <th>Data</th>
                         <th>Hora</th>
                         <th>Status</th>
-                        <th>Ação</th>
+                        <th>Ações</th>
                     </tr>
                 </thead>
-                <tbody id="agendamentosBody">
-                    <!-- Conteúdo será inserido via JS -->
+                <tbody>
+                    {% for a in agendamentos %}
+                    <tr>
+                        <td>{{ a.nome_cliente }}</td>
+                        <td>{{ a.barbeiros['nome'] }}</td>
+                        <td>{{ a.cortes['nome'] }}</td>
+                        <td>{{ a.data[:10] }}</td>
+                        <td>{{ a.hora[:5] }}</td>
+                        <td>
+                            {% if a.concluido %}
+                                <span class="badge badge-success">Concluído</span>
+                            {% else %}
+                                <span class="badge badge-warning">Pendente</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if a.concluido and not a.arquivado %}
+                            <form method="POST" action="{{ url_for('arquivar_agendamento', agendamento_id=a.id) }}">
+                                <button type="submit" class="btn btn-secondary btn-sm">📁 Arquivar</button>
+                            </form>
+                            {% else %}
+                            <small class="text-muted">—</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
-
-        <button id="btnVerArquivados" class="btn btn-outline-light mt-4">
-            📁 Ver Arquivados
-        </button>
+        {% else %}
+            <p class="text-light">Nenhum agendamento encontrado.</p>
+        {% endif %}
 
         <h4 class="mt-4">Ações:</h4>
         <div class="mb-3">
-            <button id="btnGerenciarBarbeiros" class="btn btn-primary btn-custom">
-                <i class="fas fa-user-cog icon"></i>Gerenciar Barbeiros
-            </button>
-            <button id="btnGerenciarCortes" class="btn btn-success btn-custom">
-                <i class="fas fa-cut icon"></i>Gerenciar Cortes
-            </button>
-            <button id="btnLogout" class="btn btn-danger btn-custom">
-                <i class="fas fa-sign-out-alt icon"></i>LOGOUT
-            </button>
+            <a href="{{ url_for('listar_arquivados') }}" class="btn btn-outline-light btn-custom">📁 Ver Arquivados</a>
+            <a href="{{ url_for('gerenciar_barbeiros') }}" class="btn btn-primary btn-custom">👤 Gerenciar Barbeiros</a>
+            <a href="{{ url_for('gerenciar_cortes') }}" class="btn btn-success btn-custom">✂️ Gerenciar Cortes</a>
+            <a href="{{ url_for('logout') }}" class="btn btn-danger btn-custom">🚪 Sair</a>
         </div>
-        <hr>
     </div>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  // Inicialize seu cliente Supabase aqui (substitua URL e KEY)
-  const supabaseUrl = 'https://fijsbauiupuamssehksw.supabase.co';
-  const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZpanNiYXVpdXB1YW1zc2Voa3N3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgxMjMwOTcsImV4cCI6MjA2MzY5OTA5N30.Dr9ZZtDExZOOHMVssx7x-8DlS3i7m4jB9C9N-fbajZA';
-  const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-
-  // Função para formatar data e hora
-  function formatDate(dateString) {
-    const d = new Date(dateString);
-    return d.toLocaleDateString('pt-BR');
-  }
-  function formatTime(timeString) {
-    const d = new Date(`1970-01-01T${timeString}Z`);
-    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  async function carregarAgendamentos() {
-    const { data, error } = await supabase
-      .from('agendamentos')
-      .select(`
-        id,
-        nome_cliente,
-        barbeiro:barbeiros!inner(nome),
-        corte:cortes!inner(nome),
-        data,
-        hora,
-        concluido,
-        arquivado
-      `)
-      .order('data', { ascending: true })
-      .order('hora', { ascending: true });
-
-    if (error) {
-      alert('Erro ao buscar agendamentos: ' + error.message);
-      return;
-    }
-
-    const tbody = document.getElementById('agendamentosBody');
-    tbody.innerHTML = '';
-
-    data.forEach(a => {
-      const tr = document.createElement('tr');
-
-      const nomeBarbeiro = a.barbeiro ? a.barbeiro.nome : '---';
-      const nomeCorte = a.corte ? a.corte.nome : '---';
-
-      tr.innerHTML = `
-        <td>${a.nome_cliente}</td>
-        <td>${nomeBarbeiro}</td>
-        <td>${nomeCorte}</td>
-        <td>${formatDate(a.data)}</td>
-        <td>${formatTime(a.hora)}</td>
-        <td>
-          <span class="badge ${a.concluido ? 'badge-success' : 'badge-warning'}">
-            ${a.concluido ? 'Concluído' : 'Pendente'}
-          </span>
-        </td>
-        <td>
-          ${
-            a.concluido && !a.arquivado
-              ? `<button class="btn btn-secondary btn-sm btnArquivar" data-id="${a.id}">📁 Arquivar</button>`
-              : a.arquivado
-              ? `<span class="text-muted">Arquivado</span>`
-              : ''
-          }
-        </td>
-      `;
-
-      tbody.appendChild(tr);
-    });
-
-    // Adiciona eventos aos botões arquivar
-    document.querySelectorAll('.btnArquivar').forEach(btn => {
-      btn.addEventListener('click', async e => {
-        const id = e.target.getAttribute('data-id');
-        const { error } = await supabase
-          .from('agendamentos')
-          .update({ arquivado: true })
-          .eq('id', id);
-
-        if (error) {
-          alert('Erro ao arquivar agendamento: ' + error.message);
-        } else {
-          carregarAgendamentos();
-        }
-      });
-    });
-  }
-
-  // Botões ações gerais
-  document.getElementById('btnVerArquivados').addEventListener('click', () => {
-    window.location.href = 'arquivados_admin.html'; // criar essa página similar para arquivados
-  });
-
-  document.getElementById('btnGerenciarBarbeiros').addEventListener('click', () => {
-    window.location.href = 'gerenciar_barbeiros.html'; // ajustar conforme sua estrutura
-  });
-
-  document.getElementById('btnGerenciarCortes').addEventListener('click', () => {
-    window.location.href = 'gerenciar_cortes.html'; // ajustar conforme sua estrutura
-  });
-
-  document.getElementById('btnLogout').addEventListener('click', async () => {
-    await supabase.auth.signOut();
-    window.location.href = 'login.html';
-  });
-
-  // Ao carregar a página
-  window.addEventListener('DOMContentLoaded', carregarAgendamentos);
-</script>
 </body>
 </html>
