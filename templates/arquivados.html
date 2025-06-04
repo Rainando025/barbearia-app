@@ -7,7 +7,7 @@
     body {
       margin: 0;
       padding: 40px;
-      background-color: #121212; /* fundo geral escuro */
+      background-color: #121212;
       color: #ddd;
       font-family: 'Segoe UI', sans-serif;
     }
@@ -27,25 +27,15 @@
       margin-bottom: 15px;
     }
 
-    .concluido {
-      border-color: green;
-    }
-
-    .pendente {
-      border-color: crimson;
-    }
+    .concluido { border-color: green; }
+    .pendente { border-color: crimson; }
 
     .status {
       font-weight: bold;
     }
 
-    .status.concluido {
-      color: lightgreen;
-    }
-
-    .status.pendente {
-      color: tomato;
-    }
+    .status.concluido { color: lightgreen; }
+    .status.pendente { color: tomato; }
 
     .btn-voltar {
       display: inline-block;
@@ -67,21 +57,23 @@
 </head>
 <body>
 
-  <h2>Agendamentos Arquivados</h2>
+  <h2>📁 Agendamentos Arquivados</h2>
 
   {% for a in agendamentos %}
     <div class="agendamento {{ 'concluido' if a.concluido else 'pendente' }}">
       <strong style="font-size: 18px;">💈 {{ a.nome_cliente }}</strong><br>
-      <span style="color: #aaa;">📅 {{ a.data.strftime('%d/%m/%Y') }} 🕒 {{ a.hora.strftime('%H:%M') }}</span><br>
+      <span>✂️ Corte: {{ a.cortes['nome'] }}</span><br>
+      <span>👤 Barbeiro: {{ a.barbeiros['nome'] }}</span><br>
+      <span style="color: #aaa;">📅 {{ a.data[:10] }} 🕒 {{ a.hora[:5] }}</span><br>
       <span class="status {{ 'concluido' if a.concluido else 'pendente' }}">
         {{ '✔️ Concluído' if a.concluido else '⌛ Pendente' }}
       </span>
     </div>
   {% endfor %}
 
-	<a href="{{ url_for('painel_admin') if origem == 'admin' else url_for('painel_barbeiro') }}" class="btn btn-secondary mt-4">
+  <a href="{{ url_for('painel_admin') if origem == 'admin' else url_for('painel_barbeiro') }}" class="btn-voltar">
     🔙 Voltar
-	</a>
+  </a>
 
 </body>
 </html>
