@@ -3,6 +3,9 @@ from datetime import datetime, date, timedelta  # <--- adicionei date aqui
 from werkzeug.security import generate_password_hash, check_password_hash
 import requests
 from supabase import create_client, Client
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
 
 
 
@@ -37,6 +40,29 @@ ADMIN_PASSWORD = 'admin123'
 
 #db = SQLAlchemy(app)
 
+
+def enviar_email_para_barbeiro(email_barbeiro, nome_cliente, data, hora, corte_nome):
+    try:
+        message = Mail(
+            from_email=os.getenv("EMAIL_FROM"),
+            to_emails=email_barbeiro,
+            subject="📅 Novo Agendamento Recebido",
+            html_content=f"""
+            <p>Olá,</p>
+            <p>Você recebeu um novo agendamento:</p>
+            <ul>
+                <li><strong>Cliente:</strong> {nome_cliente}</li>
+                <li><strong>Corte:</strong> {corte_nome}</li>
+                <li><strong>Data:</strong> {data}</li>
+                <li><strong>Hora:</strong> {hora}</li>
+            </ul>
+            <p>Verifique seu painel para mais detalhes.</p>
+            """
+        )
+        sg = SendGridAPIClient(os.getenv("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"))
+        sg.send(message)
+    except Exception as e:
+        print("Erro ao enviar e-mail para barbeiro:", e)
 
     
     
@@ -88,12 +114,34 @@ def agendar():
 
         return redirect(url_for('index'))
 
+    
     # Para GET: buscar cortes e barbeiros do Supabase para mostrar no form
     cortes_resp = supabase.table('cortes').select('*').execute()
     barbeiros_resp = supabase.table('barbeiros').select('*').neq('nome', 'Administrador').execute()
 
     cortes = cortes_resp.data or []
     barbeiros = barbeiros_resp.data or []
+
+
+    try:
+    barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
+    corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
+
+    if barbeiro_resp.data and corte_resp.data:
+        email_barbeiro = barbeiro_resp.data.get('email')
+        corte_nome = corte_resp.data.get('nome')
+
+        if email_barbeiro:
+            enviar_email_para_barbeiro(
+                email_barbeiro=email_barbeiro,
+                nome_cliente=nome_cliente,
+                data=data,
+                hora=hora,
+                corte_nome=corte_nome
+            )
+except Exception as e:
+    print("Erro ao buscar dados ou enviar e-mail:", e)
+
 
     return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
 
