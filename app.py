@@ -218,12 +218,10 @@ def concluir_agendamento(agendamento_id):
     # Atualizar o campo concluido para True no Supabase
     response = supabase.table('agendamentos').update({'concluido': True}).eq('id', agendamento_id).execute()
 
-    # Você pode checar se a atualização deu certo, opcional
-    if response.error is not None:
-        flash('Erro ao marcar agendamento como concluído.', 'error')
-
-    return redirect(url_for('painel_barbeiro'))
-
+    if not response.data:
+        flash('Erro ao marcar como concluído.', 'error')
+    else:
+        flash('Agendamento marcado como concluído!', 'success')
     
     
 # rota painel admin
@@ -376,13 +374,12 @@ def listar_arquivados():
 def arquivar_agendamento(agendamento_id):
     origem = request.args.get('origem', 'barbeiro')
     response = supabase.table('agendamentos').update({'arquivado': True}).eq('id', agendamento_id).execute()
-    if response.error:
-        flash('Erro ao arquivar agendamento.', 'error')
 
-    if origem == 'admin':
-        return redirect(url_for('painel_admin'))
+    if not response.data:
+        flash('Erro ao arquivar.', 'error')
     else:
-        return redirect(url_for('painel_barbeiro'))
+        flash('Agendamento arquivado.', 'success')
+
 
 
     
