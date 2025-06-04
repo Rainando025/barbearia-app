@@ -274,7 +274,7 @@ def gerenciar_barbeiros():
                             'nome': nome,
                             'email': email,
                             'username': username,
-                            'senha': senha_hash
+                            'senha': senha_hash,
                             'is_admin': False  # ✅ valor padrão explícito
                         }).execute()
                 else:  # Atualizar barbeiro existente
