@@ -124,8 +124,8 @@ def agendar():
 
 
     try:
-    barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
-    corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
+        barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
+        corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
 
     if barbeiro_resp.data and corte_resp.data:
         email_barbeiro = barbeiro_resp.data.get('email')
