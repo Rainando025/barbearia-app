@@ -341,24 +341,34 @@ def gerenciar_cortes():
     
 @app.route('/arquivados')
 def listar_arquivados():
+    if 'barbeiro_id' not in session:
+        flash("Você precisa estar logado.")
+        return redirect(url_for('login'))
+
     origem = request.args.get('origem', 'barbeiro')
-    
-    # Busca agendamentos arquivados no Supabase, ordenando por data e hora desc
-    response = (
-        supabase
-        .table('agendamentos')
-        .select('*')
-        .eq('arquivado', True)
-        .order('data', desc=True)
-        .order('hora', desc=True)
-        .execute()
+    is_admin = session.get('is_admin', False)
+
+    query = supabase.table('agendamentos').select(
+        'id, nome_cliente, data, hora, concluido, arquivado, '
+        'cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)'
+    ).eq('arquivado', True)
+
+    # Se não for admin, filtra pelos agendamentos do barbeiro logado
+    if not is_admin:
+        query = query.eq('barbeiro_id', session['barbeiro_id'])
+
+    # Ordenar por data e hora descendente
+    response = query.order('data', desc=True).order('hora', desc=True).execute()
+
+    agendamentos = response.data if response.data else []
+
+    return render_template(
+        'arquivados.html',
+        agendamentos=agendamentos,
+        origem=origem,
+        is_admin=is_admin
     )
 
-    agendamentos = []
-    if response.data:
-        agendamentos = response.data
-    
-    return render_template('arquivados.html', agendamentos=agendamentos, origem=origem)
 
     
     
