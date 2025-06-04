@@ -88,15 +88,16 @@ def agendar():
         data_obj = datetime.strptime(data, '%Y-%m-%d').date()
         hora_obj = datetime.strptime(hora, '%H:%M').time()
 
-        # Verificar se já existe agendamento para o barbeiro na data e hora via Supabase
-        response = supabase.table('agendamentos').select('*, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)').eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
-       
+        # Verificar se já existe agendamento para o barbeiro na data e hora
+        response = supabase.table('agendamentos').select(
+            '*, cortes!fk_agendamento_corte(nome), barbeiros!fk_agendamento_barbeiro(nome)'
+        ).eq('barbeiro_id', barbeiro_id).eq('data', data).eq('hora', hora).execute()
         
         if response.data and len(response.data) > 0:
             flash('Horário indisponível. Escolha outro.', 'error')
             return redirect(url_for('agendar'))
 
-        # Inserir novo agendamento no Supabase
+        # Inserir novo agendamento
         insert_response = supabase.table('agendamentos').insert({
             'nome_cliente': nome_cliente,
             'corte_id': corte_id,
@@ -109,42 +110,40 @@ def agendar():
 
         if insert_response.data:
             flash('Agendamento realizado com sucesso!', 'success')
+
+            # Enviar e-mail ao barbeiro
+            try:
+                barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
+                corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
+
+                if barbeiro_resp.data and corte_resp.data:
+                    email_barbeiro = barbeiro_resp.data.get('email')
+                    corte_nome = corte_resp.data.get('nome')
+
+                    if email_barbeiro:
+                        enviar_email_para_barbeiro(
+                            email_barbeiro=email_barbeiro,
+                            nome_cliente=nome_cliente,
+                            data=data,
+                            hora=hora,
+                            corte_nome=corte_nome
+                        )
+            except Exception as e:
+                print("Erro ao buscar dados ou enviar e-mail:", e)
         else:
             flash('Erro ao realizar agendamento.', 'error')
 
         return redirect(url_for('index'))
 
-    
-    # Para GET: buscar cortes e barbeiros do Supabase para mostrar no form
+    # GET: buscar cortes e barbeiros para o formulário
     cortes_resp = supabase.table('cortes').select('*').execute()
     barbeiros_resp = supabase.table('barbeiros').select('*').neq('nome', 'Administrador').execute()
 
     cortes = cortes_resp.data or []
     barbeiros = barbeiros_resp.data or []
 
-    
-#para envio de email
-    try:
-        barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
-        corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
+    return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
 
-    if barbeiro_resp.data and corte_resp.data:
-        email_barbeiro = barbeiro_resp.data.get('email')
-        corte_nome = corte_resp.data.get('nome')
-
-        if email_barbeiro:
-            enviar_email_para_barbeiro(
-                email_barbeiro=email_barbeiro,
-                nome_cliente=nome_cliente,
-                data=data,
-                hora=hora,
-                corte_nome=corte_nome
-            )
-     except Exception as e:
-         print("Erro ao buscar dados ou enviar e-mail:", e)
-
-
-     return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
 
 
 
