@@ -215,13 +215,20 @@ def painel_barbeiro():
 # Marcar agendamento como concluído
 @app.route('/concluir_agendamento/<int:agendamento_id>', methods=['POST'])
 def concluir_agendamento(agendamento_id):
-    # Atualizar o campo concluido para True no Supabase
-    response = supabase.table('agendamentos').update({'concluido': True}).eq('id', agendamento_id).execute()
+    try:
+        response = supabase.table('agendamentos').update({'concluido': True}).eq('id', agendamento_id).execute()
 
-    if not response.data:
-        flash('Erro ao marcar como concluído.', 'error')
-    else:
-        flash('Agendamento marcado como concluído!', 'success')
+        if not response.data:
+            flash('Erro ao concluir agendamento.', 'error')
+        else:
+            flash('Agendamento marcado como concluído!', 'success')
+
+    except Exception as e:
+        print("Erro ao concluir agendamento:", e)
+        flash('Erro interno ao concluir.', 'error')
+
+    return redirect(url_for('painel_barbeiro'))
+
     
     
 # rota painel admin
@@ -373,12 +380,23 @@ def listar_arquivados():
 @app.route('/arquivar/<int:agendamento_id>', methods=['POST'])
 def arquivar_agendamento(agendamento_id):
     origem = request.args.get('origem', 'barbeiro')
-    response = supabase.table('agendamentos').update({'arquivado': True}).eq('id', agendamento_id).execute()
 
-    if not response.data:
-        flash('Erro ao arquivar.', 'error')
+    try:
+        response = supabase.table('agendamentos').update({'arquivado': True}).eq('id', agendamento_id).execute()
+
+        if not response.data:
+            flash('Erro ao arquivar agendamento.', 'error')
+        else:
+            flash('Agendamento arquivado com sucesso!', 'success')
+
+    except Exception as e:
+        print("Erro ao arquivar agendamento:", e)
+        flash('Erro interno ao arquivar.', 'error')
+
+    if origem == 'admin':
+        return redirect(url_for('painel_admin'))
     else:
-        flash('Agendamento arquivado.', 'success')
+        return redirect(url_for('painel_barbeiro'))
 
 
 
