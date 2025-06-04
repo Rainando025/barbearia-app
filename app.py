@@ -41,8 +41,14 @@ ADMIN_PASSWORD = 'admin123'
 #db = SQLAlchemy(app)
 
 
+import os
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
 def enviar_email_para_barbeiro(email_barbeiro, nome_cliente, data, hora, corte_nome):
     try:
+        sg = SendGridAPIClient(os.getenv("SENDGRID_API_KEY"))
+
         message = Mail(
             from_email=os.getenv("EMAIL_FROM"),
             to_emails=email_barbeiro,
@@ -59,10 +65,11 @@ def enviar_email_para_barbeiro(email_barbeiro, nome_cliente, data, hora, corte_n
             <p>Verifique seu painel para mais detalhes.</p>
             """
         )
-        sg = SendGridAPIClient(os.getenv("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"))
         sg.send(message)
+
     except Exception as e:
         print("Erro ao enviar e-mail para barbeiro:", e)
+
 
     
     
