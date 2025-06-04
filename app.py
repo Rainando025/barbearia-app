@@ -122,7 +122,8 @@ def agendar():
     cortes = cortes_resp.data or []
     barbeiros = barbeiros_resp.data or []
 
-
+    
+#para envio de email
     try:
         barbeiro_resp = supabase.table('barbeiros').select('email, nome').eq('id', barbeiro_id).single().execute()
         corte_resp = supabase.table('cortes').select('nome').eq('id', corte_id).single().execute()
@@ -139,11 +140,11 @@ def agendar():
                 hora=hora,
                 corte_nome=corte_nome
             )
-except Exception as e:
-    print("Erro ao buscar dados ou enviar e-mail:", e)
+     except Exception as e:
+         print("Erro ao buscar dados ou enviar e-mail:", e)
 
 
-    return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
+     return render_template('agendar.html', cortes=cortes, barbeiros=barbeiros)
 
 
 
