@@ -87,6 +87,18 @@
         <h2>Bem-vindo, {{ barbeiro['nome'] }}!</h2>
         <h3 class="mb-4">Seus agendamentos:</h3>
 
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show mt-3" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+
         {% if agendamentos %}
             <div class="card-grid">
                 {% for agendamento in agendamentos %}
