@@ -106,7 +106,7 @@
                         {% endif %}
 
                         {% if agendamento['concluido'] and not agendamento['arquivado'] %}
-                            <form method="POST" action="{{ url_for('arquivar_agendamento', agendamento_id=agendamento['id']) }}">
+                            <form method="POST" action="{{ url_for('arquivar_agendamento', agendamento_id=agendamento['id'], origem='barbeiro') }}">
                                 <button type="submit" class="btn btn-secondary btn-sm mt-2" onclick="this.innerText='Arquivando...';">Arquivar</button>
                             </form>
                         {% endif %}
