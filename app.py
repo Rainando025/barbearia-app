@@ -8,13 +8,20 @@ app = Flask(__name__, template_folder='templates')
 CORS(app) 
 
 # Configuração do PostgreSQL
-# Certifica-te de que o utilizador 'postgres' e a base de dados 'barberflow' existem no teu PGAdmin
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:wordKey##@localhost:5433/barberflow'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Tenta ler a variável de ambiente do Render, se não existir, usa a local
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'postgresql://postgres:wordKey##@localhost:5433/barberflow')
+
+# Se a URL começar com postgres:// (padrão antigo), o SQLAlchemy precisa que mude para postgresql://
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith("postgres://"):
+    app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'].replace("postgres://", "postgresql://", 1)
+
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELOS DO BANCO DE DADOS ---
+
+
+
 
 class Barber(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -152,4 +159,5 @@ def manage_costs():
 
 if __name__ == '__main__':
     # Roda o servidor na porta 5000
+
     app.run(host='0.0.0.0', port=5000, debug=True)
