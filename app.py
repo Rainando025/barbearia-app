@@ -10,17 +10,20 @@ CORS(app)
 # --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
 
 # 1. No Render, você deve configurar a variável de ambiente DATABASE_URL com a "Connection String" do Supabase.
-# 2. Se estiver rodando localmente e não houver essa variável, ele tentará usar o seu Postgres local.
 uri = os.environ.get('DATABASE_URL')
 
 if uri:
-    # O Supabase geralmente fornece a URL começando com "postgres://". 
+    # O Supabase fornece a URL começando com "postgres://". 
     # O SQLAlchemy moderno exige "postgresql://" para funcionar corretamente.
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
+    
+    # IMPORTANTE: Para conexões externas ao Supabase, às vezes é necessário forçar o modo SSL
+    if "sslmode" not in uri:
+        separator = "&" if "?" in uri else "?"
+        uri += f"{separator}sslmode=require"
 else:
-    # Fallback para desenvolvimento local caso você não tenha configurado as variáveis de ambiente ainda.
-    # Substitua pela sua string do Supabase se quiser testar o banco da nuvem localmente.
+    # Fallback para desenvolvimento local
     uri = 'postgresql://postgres:wordKey##@localhost:5433/barberflow'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
@@ -53,12 +56,13 @@ class Cost(db.Model):
     description = db.Column(db.String(200), nullable=False)
     value = db.Column(db.Float, nullable=False)
 
-# Cria as tabelas automaticamente no banco conectado (Supabase ou Local)
+# Cria as tabelas automaticamente
 with app.app_context():
     try:
         db.create_all()
+        print("Conexão com o banco de dados estabelecida com sucesso!")
     except Exception as e:
-        print(f"Erro na conexão com o banco de dados: {e}")
+        print(f"ERRO CRÍTICO na conexão com o banco: {e}")
 
 # --- ROTAS ---
 
