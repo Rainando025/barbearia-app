@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BarberFlow - Gestão Profissional Local</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .sidebar-item:hover { background-color: #374151; }
+        .active-menu { border-left: 4px solid #fbbf24; background-color: #374151; color: white !important; }
+        .schedule-card { transition: all 0.2s; }
+        .schedule-card:hover { transform: scale(1.01); background-color: #374151; }
+        .slot-btn.selected { background-color: #fbbf24 !important; color: #1f2937 !important; transform: scale(1.1); }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1f2937; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans">
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar Lateral -->
+        <aside class="w-20 md:w-64 bg-gray-800 border-r border-gray-700 flex flex-col transition-all">
+            <div class="p-4 text-center font-bold text-yellow-500 text-xl border-b border-gray-700 h-16 flex items-center justify-center">
+                <i class="fas fa-scissors"></i> <span class="hidden md:inline ml-2 uppercase tracking-tighter">BarberFlow</span>
+            </div>
+            <nav class="flex-1 mt-4 overflow-y-auto">
+                <a href="#" onclick="changeView('agenda', this)" class="sidebar-item flex items-center p-4 text-gray-400 active-menu" data-view="agenda">
+                    <i class="fas fa-calendar-day w-6"></i> <span class="ml-3 hidden md:inline">Hoje</span>
+                </a>
+                <a href="#" onclick="changeView('future', this)" class="sidebar-item flex items-center p-4 text-gray-400" data-view="future">
+                    <i class="fas fa-calendar-alt w-6"></i> <span class="ml-3 hidden md:inline">Futuros</span>
+                </a>
+                <a href="#" onclick="changeView('finance', this)" class="sidebar-item flex items-center p-4 text-gray-400" data-view="finance">
+                    <i class="fas fa-wallet w-6"></i> <span class="ml-3 hidden md:inline">Financeiro</span>
+                </a>
+                <a href="#" onclick="changeView('booking', this)" class="sidebar-item flex items-center p-4 text-gray-400" data-view="booking">
+                    <i class="fas fa-plus-circle w-6"></i> <span class="ml-3 hidden md:inline">Novo Agendamento</span>
+                </a>
+                <a href="#" onclick="changeView('settings', this)" class="sidebar-item flex items-center p-4 text-gray-400 border-t border-gray-700 mt-4" data-view="settings">
+                    <i class="fas fa-cog w-6"></i> <span class="ml-3 hidden md:inline">Ajustes</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Área Principal -->
+        <main id="main-content" class="flex-1 overflow-y-auto p-4 md:p-10 bg-gray-900">
+            <!-- Loader Inicial -->
+            <div id="loader" class="flex flex-col items-center justify-center h-full">
+                <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-yellow-500 mb-4"></div>
+                <p class="text-gray-500">A carregar dados do servidor local...</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal de Alerta -->
+    <div id="modal" class="fixed inset-0 bg-black/80 hidden items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 border border-gray-700 p-6 rounded-2xl max-w-sm w-full shadow-2xl text-center">
+            <div id="modal-icon" class="text-4xl text-yellow-500 mb-4">
+                <i class="fas fa-exclamation-triangle"></i>
+            </div>
+            <h3 id="modal-title" class="text-xl font-bold mb-2"></h3>
+            <p id="modal-msg" class="text-gray-400 mb-6"></p>
+            <button onclick="closeModal()" class="w-full bg-yellow-500 text-gray-900 font-bold py-3 rounded-xl hover:bg-yellow-400 transition">Entendi</button>
+        </div>
+    </div>
+
+    <script>
+        // Configuração da API local
+        const API_URL = "http://localhost:5000"; 
+        
+        // Estado Global
+        let SERVICES = [], BARBERS = [], APPOINTMENTS = [], COSTS = [];
+        let currentView = 'agenda';
+        let selectedTime = null;
+        let isConnecting = false;
+
+        // Inicialização com tratamento de erro
+        async function init() {
+            const loader = document.getElementById('loader');
+            try {
+                isConnecting = true;
+                await loadData();
+                isConnecting = false;
+                renderCurrentView();
+            } catch (e) {
+                isConnecting = false;
+                showModal(
+                    "Erro de Conexão", 
+                    "Não foi possível conectar ao servidor local (" + API_URL + "). Certifique-se de que o backend Python/Flask está rodando e o banco de dados Postgres está ativo."
+                );
+                document.getElementById('main-content').innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-full text-center">
+                        <i class="fas fa-plug text-red-500 text-5xl mb-4"></i>
+                        <h2 class="text-2xl font-bold mb-2">Servidor Offline</h2>
+                        <p class="text-gray-500 mb-6">O frontend não conseguiu encontrar o backend em ${API_URL}</p>
+                        <button onclick="location.reload()" class="bg-gray-800 border border-gray-700 px-6 py-2 rounded-lg hover:bg-gray-700 transition">Tentar Novamente</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadData() {
+            // Função auxiliar para fetch com timeout ou erro tratado
+            const fetchAPI = async (endpoint) => {
+                const res = await fetch(`${API_URL}/${endpoint}`);
+                if (!res.ok) throw new Error(`Falha ao carregar ${endpoint}`);
+                return res.json();
+            };
+
+            // Carrega todos os recursos em paralelo
+            const [services, barbers, appointments, costs] = await Promise.all([
+                fetchAPI('services'),
+                fetchAPI('barbers'),
+                fetchAPI('appointments'),
+                fetchAPI('costs')
+            ]);
+
+            SERVICES = services;
+            BARBERS = barbers;
+            APPOINTMENTS = appointments;
+            COSTS = costs;
+            
+            console.log("Dados sincronizados localmente.");
+        }
+
+        // Funções de Interface
+        function changeView(view, el) {
+            if (isConnecting) return;
+            currentView = view;
+            document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active-menu'));
+            if(el) {
+                el.classList.add('active-menu');
+            } else {
+                const target = document.querySelector(`[data-view="${view}"]`);
+                if(target) target.classList.add('active-menu');
+            }
+            renderCurrentView();
+        }
+
+        function renderCurrentView() {
+            const main = document.getElementById('main-content');
+            if(currentView === 'agenda') main.innerHTML = renderAgenda(false);
+            if(currentView === 'future') main.innerHTML = renderAgenda(true);
+            if(currentView === 'finance') main.innerHTML = renderFinance();
+            if(currentView === 'booking') main.innerHTML = renderBooking();
+            if(currentView === 'settings') main.innerHTML = renderSettings();
+        }
+
+        // --- COMPONENTES ---
+
+        function renderAgenda(isFuture) {
+            const today = new Date().toISOString().split('T')[0];
+            const list = APPOINTMENTS.filter(a => isFuture ? a.date > today : a.date === today)
+                                    .filter(a => a.status !== 'cancelled')
+                                    .sort((a,b) => (a.date + a.time).localeCompare(b.date + b.time));
+
+            return `
+                <h1 class="text-3xl font-black mb-8">${isFuture ? 'Próximos Dias' : 'Agenda de Hoje'}</h1>
+                <div class="space-y-3">
+                    ${list.length ? list.map(a => {
+                        const s = SERVICES.find(s => s.id == a.service_id) || {name: 'Serviço', price: 0};
+                        const b = BARBERS.find(b => b.id == a.barber_id) || {name: 'Barbeiro'};
+                        return `
+                            <div class="bg-gray-800/50 p-4 rounded-xl border border-gray-700 flex justify-between items-center schedule-card">
+                                <div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="text-yellow-500 font-bold">${a.time}</span>
+                                        <span class="text-gray-500">|</span>
+                                        <span class="font-bold">${a.client}</span>
+                                        ${isFuture ? `<span class="text-xs bg-gray-700 px-2 py-0.5 rounded text-gray-400">${a.date}</span>` : ''}
+                                    </div>
+                                    <div class="text-sm text-gray-400">${s.name} • ${b.name}</div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <span class="text-green-400 font-bold">R$ ${s.price}</span>
+                                    ${a.status !== 'completed' ? `
+                                        <button onclick="updateStatus(${a.id}, 'completed')" class="bg-green-600 p-2 rounded text-xs font-bold px-4 hover:bg-green-500 transition">Finalizar</button>
+                                        <button onclick="updateStatus(${a.id}, 'cancelled')" class="text-red-500 hover:text-red-400 p-2"><i class="fas fa-trash"></i></button>
+                                    ` : '<span class="text-xs text-gray-500 italic">Concluído</span>'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('') : '<p class="text-gray-500 py-10">Não existem agendamentos registados.</p>'}
+                </div>
+            `;
+        }
+
+        function renderFinance() {
+            const totalGanho = APPOINTMENTS.filter(a => a.status === 'completed')
+                                          .reduce((acc, a) => acc + (SERVICES.find(s => s.id == a.service_id)?.price || 0), 0);
+            const totalGasto = COSTS.reduce((acc, c) => acc + c.value, 0);
+
+            return `
+                <h1 class="text-3xl font-black mb-8">Financeiro</h1>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                    <div class="bg-green-600/20 border border-green-500/30 p-6 rounded-2xl">
+                        <p class="text-sm text-green-400 uppercase font-bold">Receita (Finalizados)</p>
+                        <p class="text-3xl font-black">R$ ${totalGanho.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-red-600/20 border border-red-500/30 p-6 rounded-2xl">
+                        <p class="text-sm text-red-400 uppercase font-bold">Despesas</p>
+                        <p class="text-3xl font-black">R$ ${totalGasto.toFixed(2)}</p>
+                    </div>
+                    <div class="bg-blue-600/20 border border-blue-500/30 p-6 rounded-2xl">
+                        <p class="text-sm text-blue-400 uppercase font-bold">Lucro Líquido</p>
+                        <p class="text-3xl font-black">R$ ${(totalGanho - totalGasto).toFixed(2)}</p>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700">
+                    <h3 class="font-bold mb-4 text-gray-400 uppercase text-xs">Registar Despesa</h3>
+                    <form onsubmit="handleCost(event)" class="flex flex-col md:flex-row gap-3">
+                        <input id="cost_desc" placeholder="Ex: Aluguel, Produtos..." required class="flex-1 bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:border-yellow-500 outline-none">
+                        <input id="cost_val" type="number" step="0.01" placeholder="R$" required class="w-full md:w-32 bg-gray-900 border border-gray-700 p-3 rounded-xl text-sm focus:border-yellow-500 outline-none">
+                        <button class="bg-red-600 px-6 py-3 rounded-xl font-bold hover:bg-red-700 transition">Adicionar</button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function renderBooking() {
+            selectedTime = null; 
+            return `
+                <div class="max-w-xl mx-auto bg-gray-800 p-8 rounded-3xl border border-gray-700 shadow-2xl">
+                    <h2 class="text-2xl font-black mb-8 text-center uppercase tracking-widest text-yellow-500">Novo Agendamento</h2>
+                    <form onsubmit="saveBooking(event)" class="space-y-4">
+                        <div class="relative">
+                            <i class="fas fa-user absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
+                            <input id="bk_name" placeholder="Nome do Cliente" required class="w-full bg-gray-900 border border-gray-700 p-4 pl-12 rounded-xl focus:border-yellow-500 outline-none">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <select id="bk_svc" required class="bg-gray-900 border border-gray-700 p-4 rounded-xl text-sm outline-none focus:border-yellow-500 cursor-pointer">
+                                <option value="">Serviço...</option>
+                                ${SERVICES.map(s => `<option value="${s.id}">${s.name} (R$ ${s.price})</option>`).join('')}
+                            </select>
+                            <select id="bk_brb" required onchange="refreshSlots()" class="bg-gray-900 border border-gray-700 p-4 rounded-xl text-sm outline-none focus:border-yellow-500 cursor-pointer">
+                                <option value="">Barbeiro...</option>
+                                ${BARBERS.map(b => `<option value="${b.id}">${b.name}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="relative">
+                            <i class="fas fa-calendar absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
+                            <input type="date" id="bk_date" value="${new Date().toISOString().split('T')[0]}" onchange="refreshSlots()" class="w-full bg-gray-900 border border-gray-700 p-4 pl-12 rounded-xl text-sm outline-none focus:border-yellow-500">
+                        </div>
+                        
+                        <p class="text-xs text-gray-500 font-bold uppercase mt-4 flex items-center gap-2">
+                            <i class="fas fa-clock text-yellow-500"></i> Horários Disponíveis
+                        </p>
+                        <div id="slot-container" class="grid grid-cols-4 gap-2 py-4">
+                            <p class="col-span-4 text-center text-gray-600 text-sm italic">Selecione profissional e data.</p>
+                        </div>
+                        
+                        <button class="w-full bg-yellow-500 text-gray-900 font-black py-4 rounded-xl hover:bg-yellow-600 transition shadow-lg mt-4 active:scale-95">Confirmar Reserva</button>
+                    </form>
+                </div>
+            `;
+        }
+
+        function renderSettings() {
+            return `
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700">
+                        <h3 class="font-bold mb-4 text-yellow-500 flex items-center gap-2"><i class="fas fa-cut"></i> Gerenciar Serviços</h3>
+                        <form onsubmit="saveSvc(event)" class="flex gap-2 mb-6">
+                            <input id="s_name" placeholder="Nome" required class="flex-1 bg-gray-900 border border-gray-700 p-2 rounded text-sm outline-none focus:border-yellow-500">
+                            <input id="s_price" type="number" step="0.01" placeholder="R$" required class="w-20 bg-gray-900 border border-gray-700 p-2 rounded text-sm outline-none focus:border-yellow-500">
+                            <button class="bg-yellow-500 text-black px-4 rounded font-bold hover:bg-yellow-600"><i class="fas fa-plus"></i></button>
+                        </form>
+                        <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                            ${SERVICES.length ? SERVICES.map(s => `
+                                <div class="flex justify-between items-center p-3 bg-gray-900/40 border border-gray-700/50 rounded-xl text-sm group">
+                                    <span>${s.name} <span class="text-yellow-500 ml-2">R$ ${s.price}</span></span> 
+                                    <button onclick="del('services', ${s.id})" class="text-red-500 opacity-0 group-hover:opacity-100 transition p-1"><i class="fas fa-trash"></i></button>
+                                </div>
+                            `).join('') : '<p class="text-gray-600 text-sm">Nenhum serviço disponível.</p>'}
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-800 p-6 rounded-2xl border border-gray-700">
+                        <h3 class="font-bold mb-4 text-blue-400 flex items-center gap-2"><i class="fas fa-user-tie"></i> Profissionais</h3>
+                        <form onsubmit="saveBrb(event)" class="flex gap-2 mb-6">
+                            <input id="b_name" placeholder="Nome do Barbeiro" required class="flex-1 bg-gray-900 border border-gray-700 p-2 rounded text-sm outline-none focus:border-blue-500">
+                            <button class="bg-blue-600 px-4 rounded font-bold hover:bg-blue-700"><i class="fas fa-plus"></i></button>
+                        </form>
+                        <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
+                            ${BARBERS.length ? BARBERS.map(b => `
+                                <div class="flex justify-between items-center p-3 bg-gray-900/40 border border-gray-700/50 rounded-xl text-sm group">
+                                    <span>${b.name}</span> 
+                                    <button onclick="del('barbers', ${b.id})" class="text-red-500 opacity-0 group-hover:opacity-100 transition p-1"><i class="fas fa-trash"></i></button>
+                                </div>
+                            `).join('') : '<p class="text-gray-600 text-sm">Nenhum barbeiro registado.</p>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- ACÇÕES DE API ---
+
+        async function saveBooking(e) {
+            e.preventDefault();
+            if(!selectedTime) return showModal("Atenção", "Por favor, selecione um horário para o agendamento.");
+            
+            const data = {
+                client: document.getElementById('bk_name').value,
+                service_id: parseInt(document.getElementById('bk_svc').value),
+                barber_id: parseInt(document.getElementById('bk_brb').value),
+                date: document.getElementById('bk_date').value,
+                time: selectedTime,
+                status: 'confirmed'
+            };
+
+            try {
+                await fetch(`${API_URL}/appointments`, { 
+                    method: 'POST', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify(data)
+                });
+                await loadData();
+                changeView('agenda');
+            } catch (err) {
+                showModal("Erro ao Salvar", "Não foi possível registar o agendamento no banco de dados.");
+            }
+        }
+
+        function refreshSlots() {
+            const container = document.getElementById('slot-container');
+            const date = document.getElementById('bk_date').value;
+            const barber = document.getElementById('bk_brb').value;
+            
+            if(!barber || !date) return;
+
+            const hours = ["09:00","09:30","10:00","10:30","11:00","11:30","14:00","14:30","15:00","15:30","16:00","16:30","17:00","17:30"];
+            const taken = APPOINTMENTS.filter(a => a.date === date && a.barber_id == barber && a.status !== 'cancelled').map(a => a.time);
+
+            container.innerHTML = hours.map(h => {
+                const isTaken = taken.includes(h);
+                return `
+                    <button type="button" 
+                        ${isTaken ? 'disabled' : ''} 
+                        onclick="selectSlot('${h}', this)" 
+                        class="slot-btn p-2 rounded-lg bg-gray-700 text-xs font-bold ${isTaken ? 'opacity-20 cursor-not-allowed' : 'hover:bg-yellow-500/20 hover:text-yellow-500 border border-transparent hover:border-yellow-500/50 transition'}">
+                        ${h}
+                    </button>`;
+            }).join('');
+        }
+
+        window.selectSlot = (h, el) => {
+            selectedTime = h;
+            document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        window.updateStatus = async (id, status) => {
+            try {
+                await fetch(`${API_URL}/appointments/${id}`, { 
+                    method: 'PUT', 
+                    headers: {'Content-Type':'application/json'}, 
+                    body: JSON.stringify({status})
+                });
+                await loadData();
+                renderCurrentView();
+            } catch(e) {
+                showModal("Erro", "Falha ao atualizar o status do agendamento.");
+            }
+        }
+
+        window.del = async (table, id) => {
+            if(!confirm("Tem certeza que deseja apagar este item?")) return;
+            try {
+                await fetch(`${API_URL}/${table}/${id}`, { method: 'DELETE' });
+                await loadData();
+                renderCurrentView();
+            } catch(e) {
+                showModal("Impossível Apagar", "Este registo pode estar vinculado a um agendamento existente.");
+            }
+        }
+
+        async function saveSvc(e) { 
+            e.preventDefault(); 
+            const data = {
+                name: document.getElementById('s_name').value, 
+                price: parseFloat(document.getElementById('s_price').value)
+            }; 
+            await fetch(`${API_URL}/services`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}); 
+            await loadData(); 
+            renderCurrentView(); 
+        }
+
+        async function saveBrb(e) { 
+            e.preventDefault(); 
+            const data = {name: document.getElementById('b_name').value}; 
+            await fetch(`${API_URL}/barbers`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}); 
+            await loadData(); 
+            renderCurrentView(); 
+        }
+
+        async function handleCost(e) { 
+            e.preventDefault(); 
+            const data = {
+                description: document.getElementById('cost_desc').value, 
+                value: parseFloat(document.getElementById('cost_val').value)
+            }; 
+            await fetch(`${API_URL}/costs`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)}); 
+            await loadData(); 
+            renderCurrentView(); 
+        }
+
+        function showModal(title, msg) {
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-msg').innerText = msg;
+            document.getElementById('modal').classList.remove('hidden');
+            document.getElementById('modal').classList.add('flex');
+        }
+
+        window.closeModal = () => document.getElementById('modal').classList.add('hidden');
+
+        // Carregar sistema
+        window.onload = init;
+    </script>
+</body>
+</html>
