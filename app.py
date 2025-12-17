@@ -9,16 +9,18 @@ CORS(app)
 
 # --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
 
-# 1. Tenta pegar a URL do banco do Render (DATABASE_URL)
-# 2. Se não existir, usa a sua configuração local do Postgres
+# 1. No Render, você deve configurar a variável de ambiente DATABASE_URL com a "Connection String" do Supabase.
+# 2. Se estiver rodando localmente e não houver essa variável, ele tentará usar o seu Postgres local.
 uri = os.environ.get('DATABASE_URL')
 
 if uri:
-    # Correção necessária: Render/Heroku usam "postgres://", mas o SQLAlchemy exige "postgresql://"
+    # O Supabase geralmente fornece a URL começando com "postgres://". 
+    # O SQLAlchemy moderno exige "postgresql://" para funcionar corretamente.
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
 else:
-    # Sua configuração local (ajustada para a porta 5433 que você usa)
+    # Fallback para desenvolvimento local caso você não tenha configurado as variáveis de ambiente ainda.
+    # Substitua pela sua string do Supabase se quiser testar o banco da nuvem localmente.
     uri = 'postgresql://postgres:wordKey##@localhost:5433/barberflow'
 
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
@@ -51,26 +53,28 @@ class Cost(db.Model):
     description = db.Column(db.String(200), nullable=False)
     value = db.Column(db.Float, nullable=False)
 
-# Cria as tabelas automaticamente
+# Cria as tabelas automaticamente no banco conectado (Supabase ou Local)
 with app.app_context():
     try:
         db.create_all()
     except Exception as e:
-        print(f"Erro na conexão: {e}")
+        print(f"Erro na conexão com o banco de dados: {e}")
 
 # --- ROTAS ---
 
 @app.route('/')
 def index():
-    # Retorna o HTML se estiver na pasta templates ou apenas uma mensagem de status
     try:
         return render_template('index.html')
     except:
-        return jsonify({"message": "Backend BarberFlow Ativo", "db_status": "Conectado"})
+        return jsonify({"message": "Backend BarberFlow Ativo", "db_connected": True})
 
 @app.route('/api/status')
 def status():
-    return jsonify({"status": "online", "environment": "production" if os.environ.get('DATABASE_URL') else "local"})
+    return jsonify({
+        "status": "online", 
+        "database": "Supabase/Cloud" if os.environ.get('DATABASE_URL') else "Local"
+    })
 
 @app.route('/services', methods=['GET', 'POST'])
 def manage_services():
@@ -151,6 +155,5 @@ def manage_costs():
     return jsonify({'message': 'Registrado'}), 201
 
 if __name__ == '__main__':
-    # No Render, a porta é passada pela variável de ambiente PORT
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
