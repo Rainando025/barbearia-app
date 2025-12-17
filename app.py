@@ -53,7 +53,8 @@ with app.app_context():
 
 @app.route('/')
 def index():
-    return "index"
+    # Certifique-se de que o index.html está dentro de uma pasta chamada 'templates'
+    return render_template('index.html')
 
 @app.route('/services', methods=['GET', 'POST'])
 def manage_services():
@@ -115,4 +116,5 @@ if __name__ == '__main__':
     # Importante: O Render define a porta pela variável de ambiente PORT
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
+
 
