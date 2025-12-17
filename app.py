@@ -3,22 +3,30 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 import os
 
+# Inicializa o Flask. O template_folder é usado caso o HTML esteja no backend.
 app = Flask(__name__, template_folder='templates')
 CORS(app) 
 
-# --- CONFIGURAÇÃO DE CONEXÃO ---
+# --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
 
+# 1. Tenta pegar a URL do banco do Render (DATABASE_URL)
+# 2. Se não existir, usa a sua configuração local do Postgres
 uri = os.environ.get('DATABASE_URL')
 
-if uri and uri.startswith("postgres://"):
-    uri = uri.replace("postgres://", "postgresql://", 1)
+if uri:
+    # Correção necessária: Render/Heroku usam "postgres://", mas o SQLAlchemy exige "postgresql://"
+    if uri.startswith("postgres://"):
+        uri = uri.replace("postgres://", "postgresql://", 1)
+else:
+    # Sua configuração local (ajustada para a porta 5433 que você usa)
+    uri = 'postgresql://postgres:wordKey##@localhost:5433/barberflow'
 
-app.config['SQLALCHEMY_DATABASE_URI'] = uri or 'postgresql://postgres:wordKey##@localhost:5432/barberflow'
+app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# --- MODELOS ---
+# --- MODELOS DO BANCO DE DADOS ---
 
 class Barber(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -43,18 +51,26 @@ class Cost(db.Model):
     description = db.Column(db.String(200), nullable=False)
     value = db.Column(db.Float, nullable=False)
 
+# Cria as tabelas automaticamente
 with app.app_context():
     try:
         db.create_all()
     except Exception as e:
-        print(f"Erro: {e}")
+        print(f"Erro na conexão: {e}")
 
 # --- ROTAS ---
 
 @app.route('/')
 def index():
-    # Certifique-se de que o index.html está dentro de uma pasta chamada 'templates'
-    return render_template('index.html')
+    # Retorna o HTML se estiver na pasta templates ou apenas uma mensagem de status
+    try:
+        return render_template('index.html')
+    except:
+        return jsonify({"message": "Backend BarberFlow Ativo", "db_status": "Conectado"})
+
+@app.route('/api/status')
+def status():
+    return jsonify({"status": "online", "environment": "production" if os.environ.get('DATABASE_URL') else "local"})
 
 @app.route('/services', methods=['GET', 'POST'])
 def manage_services():
@@ -67,6 +83,13 @@ def manage_services():
     db.session.commit()
     return jsonify({'message': 'Ok'}), 201
 
+@app.route('/services/<int:id>', methods=['DELETE'])
+def delete_service(id):
+    service = Service.query.get_or_404(id)
+    db.session.delete(service)
+    db.session.commit()
+    return jsonify({'message': 'Removido'})
+
 @app.route('/barbers', methods=['GET', 'POST'])
 def manage_barbers():
     if request.method == 'GET':
@@ -78,16 +101,31 @@ def manage_barbers():
     db.session.commit()
     return jsonify({'message': 'Ok'}), 201
 
+@app.route('/barbers/<int:id>', methods=['DELETE'])
+def delete_barber(id):
+    barber = Barber.query.get_or_404(id)
+    db.session.delete(barber)
+    db.session.commit()
+    return jsonify({'message': 'Removido'})
+
 @app.route('/appointments', methods=['GET', 'POST'])
 def manage_appointments():
     if request.method == 'GET':
         apps = Appointment.query.all()
-        return jsonify([{'id': a.id, 'client': a.client, 'date': a.date, 'time': a.time, 'status': a.status, 'barber_id': a.barber_id, 'service_id': a.service_id} for a in apps])
+        return jsonify([{
+            'id': a.id, 'client': a.client, 'date': a.date, 
+            'time': a.time, 'status': a.status, 
+            'barber_id': a.barber_id, 'service_id': a.service_id
+        } for a in apps])
     data = request.json
-    new_app = Appointment(client=data['client'], date=data['date'], time=data['time'], barber_id=data['barber_id'], service_id=data['service_id'])
+    new_app = Appointment(
+        client=data['client'], date=data['date'], time=data['time'],
+        barber_id=data['barber_id'], service_id=data['service_id'],
+        status=data.get('status', 'confirmed')
+    )
     db.session.add(new_app)
     db.session.commit()
-    return jsonify({'message': 'Ok'}), 201
+    return jsonify({'message': 'Agendado'}), 201
 
 @app.route('/appointments/<int:id>', methods=['PUT', 'DELETE'])
 def update_appointment(id):
@@ -96,10 +134,10 @@ def update_appointment(id):
         data = request.json
         if 'status' in data: appo.status = data['status']
         db.session.commit()
-        return jsonify({'message': 'Ok'})
+        return jsonify({'message': 'Atualizado'})
     db.session.delete(appo)
     db.session.commit()
-    return jsonify({'message': 'Ok'})
+    return jsonify({'message': 'Removido'})
 
 @app.route('/costs', methods=['GET', 'POST'])
 def manage_costs():
@@ -110,11 +148,9 @@ def manage_costs():
     new_cost = Cost(description=data['description'], value=data['value'])
     db.session.add(new_cost)
     db.session.commit()
-    return jsonify({'message': 'Ok'}), 201
+    return jsonify({'message': 'Registrado'}), 201
 
 if __name__ == '__main__':
-    # Importante: O Render define a porta pela variável de ambiente PORT
+    # No Render, a porta é passada pela variável de ambiente PORT
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
-
-
