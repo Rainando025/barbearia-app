@@ -8,7 +8,9 @@ import sys
 # O template_folder indica onde está o teu index.html
 app = Flask(__name__, template_folder='templates')
 
-# Configuração de CORS robusta para permitir conexões do Render e Localhost
+# Configuração de CORS robusta. 
+# "strict_slashes=False" permite que o Flask ignore a barra '/' no final da URL.
+app.url_map.strict_slashes = False
 CORS(app, resources={r"/*": {"origins": "*"}}) 
 
 # --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
@@ -91,8 +93,7 @@ def index():
 def status():
     # Rota de diagnóstico para o seu frontend verificar se o banco está vivo
     try:
-        # Tenta uma consulta simples para validar o banco
-        db.session.execute('SELECT 1')
+        db.session.execute(db.text('SELECT 1'))
         db_status = "connected"
     except Exception as e:
         db_status = f"error: {str(e)}"
