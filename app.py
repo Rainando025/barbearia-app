@@ -14,9 +14,17 @@ CORS(app)
 uri = os.environ.get('DATABASE_URL')
 
 if uri:
+    # 1. Correção para o SQLAlchemy 2.0+ (postgres:// -> postgresql://)
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
     
+    # 2. Solução para "Network is unreachable" (Erro e3q8 / Porta 5432)
+    # Se a URL contém a porta 5432 do Supabase, tentamos trocar para 6543 (Pooler)
+    # que é muito mais estável para conexões saindo do Render.
+    if "@db.edyayltdzfiovbbmlzyd.supabase.co:5432" in uri:
+        uri = uri.replace(":5432", ":6543")
+    
+    # 3. Garante o uso de SSL, obrigatório para Supabase
     if "sslmode" not in uri:
         separator = "&" if "?" in uri else "?"
         uri += f"{separator}sslmode=require"
@@ -26,9 +34,14 @@ else:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Configurações de Engine para evitar quedas de conexão
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_pre_ping": True,
-    "pool_recycle": 300,
+    "pool_pre_ping": True,     # Verifica se a conexão está viva antes de usar
+    "pool_recycle": 280,       # Recicla conexões antes do timeout do banco (Supabase costuma ser 300s)
+    "connect_args": {
+        "connect_timeout": 10  # Tempo limite para desistir da conexão
+    }
 }
 
 db = SQLAlchemy(app)
@@ -62,16 +75,14 @@ class Cost(db.Model):
 with app.app_context():
     try:
         db.create_all()
-        print(">>> [LOG] Conexão com Supabase estabelecida e tabelas verificadas.")
+        print(">>> [LOG] Conexão com Supabase estabelecida com sucesso!")
     except Exception as e:
-        print(f">>> [CRÍTICO] Erro de conexão com o Banco de Dados: {e}", file=sys.stderr)
+        print(f">>> [CRÍTICO] Falha na conexão: {e}", file=sys.stderr)
 
 # --- ROTAS ---
 
-# Rota principal para carregar o site (Frontend)
 @app.route('/')
 def index():
-    # Isso procura o ficheiro index.html dentro da pasta /templates
     return render_template('index.html')
 
 @app.route('/api/status')
