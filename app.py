@@ -7,7 +7,9 @@ import sys
 # Inicializa o Flask.
 # O template_folder indica onde está o teu index.html
 app = Flask(__name__, template_folder='templates')
-CORS(app) 
+
+# Configuração de CORS robusta para permitir conexões do Render e Localhost
+CORS(app, resources={r"/*": {"origins": "*"}}) 
 
 # --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
 
@@ -18,10 +20,9 @@ if uri:
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
     
-    # 2. Solução para "Network is unreachable" (Erro e3q8 / Porta 5432)
-    # Se a URL contém a porta 5432 do Supabase, tentamos trocar para 6543 (Pooler)
-    # que é muito mais estável para conexões saindo do Render.
-    if "@db.edyayltdzfiovbbmlzyd.supabase.co:5432" in uri:
+    # 2. Forçar porta 6543 (Transaction Pooler) se for Supabase
+    # Isso resolve o erro "Network is unreachable" em 99% dos casos no Render
+    if "supabase.co" in uri and ":5432" in uri:
         uri = uri.replace(":5432", ":6543")
     
     # 3. Garante o uso de SSL, obrigatório para Supabase
@@ -35,12 +36,12 @@ else:
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configurações de Engine para evitar quedas de conexão
+# Configurações de Engine otimizadas para Nuvem/Supabase
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    "pool_pre_ping": True,     # Verifica se a conexão está viva antes de usar
-    "pool_recycle": 280,       # Recicla conexões antes do timeout do banco (Supabase costuma ser 300s)
+    "pool_pre_ping": True,
+    "pool_recycle": 280,
     "connect_args": {
-        "connect_timeout": 10  # Tempo limite para desistir da conexão
+        "connect_timeout": 15
     }
 }
 
@@ -83,11 +84,24 @@ with app.app_context():
 
 @app.route('/')
 def index():
+    # Rota principal que serve o HTML
     return render_template('index.html')
 
 @app.route('/api/status')
 def status():
-    return jsonify({"status": "online", "database": "connected" if uri else "local"})
+    # Rota de diagnóstico para o seu frontend verificar se o banco está vivo
+    try:
+        # Tenta uma consulta simples para validar o banco
+        db.session.execute('SELECT 1')
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
+    return jsonify({
+        "status": "online",
+        "database": db_status,
+        "mode": "production" if os.environ.get('DATABASE_URL') else "development"
+    })
 
 @app.route('/services', methods=['GET', 'POST'])
 def manage_services():
@@ -130,6 +144,17 @@ def manage_barbers():
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
 
+@app.route('/barbers/<int:id>', methods=['DELETE'])
+def delete_barber(id):
+    try:
+        barber = Barber.query.get_or_404(id)
+        db.session.delete(barber)
+        db.session.commit()
+        return jsonify({'message': 'Removido'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/appointments', methods=['GET', 'POST'])
 def manage_appointments():
     try:
@@ -149,6 +174,22 @@ def manage_appointments():
         db.session.add(new_app)
         db.session.commit()
         return jsonify({'message': 'Agendado'}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/appointments/<int:id>', methods=['PUT', 'DELETE'])
+def update_appointment(id):
+    try:
+        appo = Appointment.query.get_or_404(id)
+        if request.method == 'PUT':
+            data = request.json
+            if 'status' in data: appo.status = data['status']
+            db.session.commit()
+            return jsonify({'message': 'Atualizado'})
+        db.session.delete(appo)
+        db.session.commit()
+        return jsonify({'message': 'Removido'})
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
