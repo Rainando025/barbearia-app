@@ -5,22 +5,18 @@ import os
 import sys
 
 # Inicializa o Flask.
+# O template_folder indica onde está o teu index.html
 app = Flask(__name__, template_folder='templates')
 CORS(app) 
 
 # --- CONFIGURAÇÃO DINÂMICA DO BANCO DE DADOS ---
 
-# 1. Pega a URL das variáveis de ambiente do Render
 uri = os.environ.get('DATABASE_URL')
 
 if uri:
-    # Correção para o SQLAlchemy 2.0+ aceitar links postgres:// (comum no Render/Heroku)
     if uri.startswith("postgres://"):
         uri = uri.replace("postgres://", "postgresql://", 1)
     
-    # Se for Supabase e estiver usando a porta 5432, as vezes o Render exige SSL explícito
-    # Ou recomenda-se usar a porta 6543 para Pooling. 
-    # Vou forçar o parâmetro de SSL que resolve o erro e3q8 na maioria das vezes.
     if "sslmode" not in uri:
         separator = "&" if "?" in uri else "?"
         uri += f"{separator}sslmode=require"
@@ -30,7 +26,6 @@ else:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Adiciona timeout e configurações de pool para evitar conexões "penduradas"
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     "pool_pre_ping": True,
     "pool_recycle": 300,
@@ -66,7 +61,6 @@ class Cost(db.Model):
 # Inicialização segura do Banco de Dados
 with app.app_context():
     try:
-        # Tenta criar as tabelas se não existirem
         db.create_all()
         print(">>> [LOG] Conexão com Supabase estabelecida e tabelas verificadas.")
     except Exception as e:
@@ -74,16 +68,15 @@ with app.app_context():
 
 # --- ROTAS ---
 
+# Rota principal para carregar o site (Frontend)
 @app.route('/')
 def index():
-    return jsonify({
-        "message": "BarberFlow API Online",
-        "database_status": "Tentativa de conexão realizada"
-    })
+    # Isso procura o ficheiro index.html dentro da pasta /templates
+    return render_template('index.html')
 
 @app.route('/api/status')
 def status():
-    return jsonify({"status": "online"})
+    return jsonify({"status": "online", "database": "connected" if uri else "local"})
 
 @app.route('/services', methods=['GET', 'POST'])
 def manage_services():
