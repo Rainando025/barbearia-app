@@ -27,7 +27,16 @@ if uri:
     if "supabase.co" in uri and ":5432" in uri:
         uri = uri.replace(":5432", ":6543")
     
-    # 3. Garante o uso de SSL, obrigatório para Supabase
+    # 3. Limpeza de parâmetros que causam erro no psycopg2 (como pgbouncer=true)
+    if "pgbouncer=" in uri:
+        # Remove o parâmetro pgbouncer da string de conexão para evitar o erro ProgrammingError
+        if "?" in uri:
+            parts = uri.split("?")
+            base = parts[0]
+            params = [p for p in parts[1].split("&") if "pgbouncer=" not in p]
+            uri = base + ("?" + "&".join(params) if params else "")
+
+    # 4. Garante o uso de SSL, obrigatório para Supabase
     if "sslmode" not in uri:
         separator = "&" if "?" in uri else "?"
         uri += f"{separator}sslmode=require"
